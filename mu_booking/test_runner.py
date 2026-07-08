@@ -63,3 +63,23 @@ def run_git_commands():
         return {"status": "success", "results": output}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@frappe.whitelist(allow_guest=True)
+def fix_workspace():
+    try:
+        # Force update report
+        frappe.db.sql("UPDATE tabReport SET ref_doctype='Asset' WHERE name='Asset Utilization Report'")
+        
+        # Update child tables where Frappe might have cached the wrong ref_doctype
+        frappe.db.sql("UPDATE `tabWorkspace Link` SET report_ref_doctype='Asset' WHERE link_to='Asset Utilization Report'")
+        frappe.db.sql("UPDATE `tabWorkspace Shortcut` SET report_ref_doctype='Asset' WHERE link_to='Asset Utilization Report'")
+        
+        # Delete any custom 'Party Bookings' workspaces (Frappe duplicates them with user suffix or public=0)
+        frappe.db.sql("DELETE FROM tabWorkspace WHERE name LIKE 'Party Bookings-%' OR (name='Party Bookings' AND module='')")
+        
+        # Also clean up the portal/desk cache
+        frappe.clear_cache()
+        frappe.db.commit()
+        return {"status": "success", "message": "DB fixed directly with SQL"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

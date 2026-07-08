@@ -91,7 +91,7 @@
    "link_to": "Asset Utilization Report",
    "link_type": "Report",
    "onboard": 0,
-   "report_ref_doctype": "Party Booking Asset",
+   "report_ref_doctype": "Asset",
    "type": "Link"
   },
   {
@@ -161,7 +161,7 @@
    "doc_view": "",
    "label": "Asset Utilization Report",
    "link_to": "Asset Utilization Report",
-   "report_ref_doctype": "Party Booking Asset",
+   "report_ref_doctype": "Asset",
    "type": "Report"
   }
  ],

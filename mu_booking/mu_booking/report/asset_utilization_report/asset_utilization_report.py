@@ -21,7 +21,7 @@ def get_data(filters):
     values = {}
     
     if filters.get("item_group"):
-        conditions += " AND a.item_group = %(item_group)s"
+        conditions += " AND i.item_group = %(item_group)s"
         values["item_group"] = filters.get("item_group")
         
     date_condition = ""
@@ -34,11 +34,12 @@ def get_data(filters):
         SELECT 
             a.name as asset_name,
             a.item_code,
-            a.item_group,
+            i.item_group as item_group,
             a.party_booking_status as current_status,
             COUNT(DISTINCT pb.name) as total_rentals,
             SUM(IFNULL(pb.number_of_days, 1)) as total_days
         FROM `tabAsset` a
+        LEFT JOIN `tabItem` i ON a.item_code = i.name
         LEFT JOIN `tabParty Booking Asset` pba ON pba.asset_name = a.name
         LEFT JOIN `tabParty Booking` pb ON pb.name = pba.parent AND pb.docstatus = 1 {date_condition}
         WHERE a.is_existing_asset = 1 {conditions}
