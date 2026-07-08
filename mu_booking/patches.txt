@@ -7,3 +7,4 @@
 mu_booking.patches.v1_0.fix_workflow_colors
 mu_booking.patches.v1_0.migrate_customers
 mu_booking.patches.v1_0.force_reload_party_booking
+mu_booking.patches.v1_0.force_reload_party_booking_v2
