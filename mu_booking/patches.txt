@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 mu_booking.patches.v1_0.fix_workflow_colors
 mu_booking.patches.v1_0.migrate_customers
+mu_booking.patches.v1_0.force_reload_party_booking
