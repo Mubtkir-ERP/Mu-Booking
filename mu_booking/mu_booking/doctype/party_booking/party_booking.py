@@ -3,9 +3,24 @@
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import add_days, getdate, today
+from frappe.utils import add_days, add_months, getdate, today, cstr
 from frappe import _
+import calendar
 
+def get_nth_weekday_of_month(year, month, week_str, weekday_int):
+    c = calendar.Calendar(firstweekday=calendar.MONDAY)
+    monthcal = c.monthdatescalendar(year, month)
+    matching_dates = [d for week in monthcal for d in week if d.month == month and d.weekday() == weekday_int]
+    
+    if not matching_dates:
+        return None
+        
+    if week_str == "1st": return matching_dates[0]
+    if week_str == "2nd": return matching_dates[1] if len(matching_dates) > 1 else None
+    if week_str == "3rd": return matching_dates[2] if len(matching_dates) > 2 else None
+    if week_str == "4th": return matching_dates[3] if len(matching_dates) > 3 else None
+    if week_str == "Last": return matching_dates[-1]
+    return None
 
 class PartyBooking(Document):
     def before_validate(self):
@@ -39,42 +54,104 @@ class PartyBooking(Document):
                 frappe.throw(_("Party Date cannot be in the past."))
 
     def validate_recurring(self):
-        """C03 FIX: Validate that recurring bookings have at least 1 day/session."""
+        """Validate required fields based on recurring pattern."""
         if self.booking_type == "Recurring":
             if not self.recurring_pattern:
                 frappe.throw(_("Please select a Recurring Pattern for a Recurring booking."))
+            
+            if self.recurring_pattern == "Manual":
+                return
+                
+            if not self.start_date:
+                frappe.throw(_("Start Date is required for Recurring booking."))
+
             if self.recurring_pattern == "Daily":
                 if not self.number_of_days or int(self.number_of_days) < 1:
-                    frappe.throw(_("Number of Days/Sessions must be at least 1 for a Daily recurring booking."))
-                if not self.start_date:
-                    frappe.throw(_("Start Date is required for a Daily recurring booking."))
+                    frappe.throw(_("Number of Days must be at least 1 for Daily recurring booking."))
+            
+            elif self.recurring_pattern in ["Weekly", "Monthly"]:
+                if not self.end_date:
+                    frappe.throw(_("End Date is required for Weekly/Monthly recurring bookings."))
+                if getdate(self.end_date) < getdate(self.start_date):
+                    frappe.throw(_("End Date cannot be before Start Date."))
 
     def generate_recurring_sessions(self):
-        """Auto-generate sessions for Recurring bookings with Daily pattern.
-        Only generates if sessions table is empty to avoid overwriting manual edits.
-        Clears and regenerates if start_date or number_of_days changed.
-        """
-        if self.booking_type != "Recurring" or not self.recurring_pattern:
+        """Generate sessions dynamically based on the chosen pattern."""
+        if self.booking_type != "Recurring":
+            self.sessions = []
             return
 
-        if self.recurring_pattern == "Daily" and self.start_date and self.number_of_days:
-            # Check if we need to regenerate (no sessions yet, or date/count changed)
-            needs_regenerate = not self.sessions
-            if not needs_regenerate and not self.is_new():
-                old_doc = self.get_doc_before_save()
-                if old_doc:
-                    if (str(old_doc.start_date) != str(self.start_date) or
-                            old_doc.number_of_days != self.number_of_days):
-                        needs_regenerate = True
+        if self.recurring_pattern == "Manual":
+            return
 
-            if needs_regenerate:
-                self.sessions = []
-                for i in range(self.number_of_days):
-                    self.append("sessions", {
-                        "session_date": add_days(self.start_date, i),
-                        "session_time": self.party_time,
-                        "session_status": "Scheduled"
-                    })
+        if not self.start_date:
+            return
+
+        expected_dates = []
+        start = getdate(self.start_date)
+
+        if self.recurring_pattern == "Daily":
+            for i in range(int(self.number_of_days or 0)):
+                expected_dates.append(add_days(start, i))
+
+        elif self.recurring_pattern == "Weekly":
+            if not self.end_date: return
+            end = getdate(self.end_date)
+            
+            weekdays = []
+            if getattr(self, "monday", 0): weekdays.append(0)
+            if getattr(self, "tuesday", 0): weekdays.append(1)
+            if getattr(self, "wednesday", 0): weekdays.append(2)
+            if getattr(self, "thursday", 0): weekdays.append(3)
+            if getattr(self, "friday", 0): weekdays.append(4)
+            if getattr(self, "saturday", 0): weekdays.append(5)
+            if getattr(self, "sunday", 0): weekdays.append(6)
+            
+            if not weekdays:
+                frappe.throw(_("Please select at least one day of the week."))
+                
+            current = start
+            while current <= end:
+                if current.weekday() in weekdays:
+                    expected_dates.append(current)
+                current = add_days(current, 1)
+
+        elif self.recurring_pattern == "Monthly":
+            if not self.end_date: return
+            end = getdate(self.end_date)
+            
+            if not self.monthly_day or not self.monthly_week:
+                frappe.throw(_("Please select Week and Day for Monthly pattern."))
+                
+            day_map = {"Monday":0, "Tuesday":1, "Wednesday":2, "Thursday":3, "Friday":4, "Saturday":5, "Sunday":6}
+            target_day = day_map[self.monthly_day]
+            
+            current_month_start = start.replace(day=1)
+            while current_month_start <= end:
+                date_to_add = get_nth_weekday_of_month(current_month_start.year, current_month_start.month, self.monthly_week, target_day)
+                if date_to_add and start <= date_to_add <= end:
+                    expected_dates.append(date_to_add)
+                current_month_start = add_months(current_month_start, 1)
+
+        existing_sessions = {cstr(s.session_date): s for s in self.sessions if s.session_date}
+        
+        self.sessions = []
+        for d in expected_dates:
+            d_str = cstr(d)
+            if d_str in existing_sessions:
+                old_s = existing_sessions[d_str]
+                self.append("sessions", {
+                    "session_date": d,
+                    "session_time": old_s.session_time or self.party_time,
+                    "session_status": old_s.session_status,
+                    "alternative_asset": old_s.alternative_asset
+                })
+            else:
+                self.append("sessions", {
+                    "session_date": d,
+                    "session_time": self.party_time,
+                    "session_status": "Scheduled"
+                })
 
     def get_booking_dates(self):
         """Return list of unique dates covered by this booking."""
