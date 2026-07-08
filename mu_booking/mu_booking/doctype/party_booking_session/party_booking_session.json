@@ -8,6 +8,7 @@
  "field_order": [
   "session_date",
   "session_time",
+  "alternative_asset",
   "session_status"
  ],
  "fields": [
@@ -24,6 +25,14 @@
    "in_list_view": 1,
    "label": "Session Time",
    "reqd": 1
+  },
+  {
+   "description": "If specified, this asset will be booked for this session instead of the main booking assets.",
+   "fieldname": "alternative_asset",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Alternative Asset",
+   "options": "Asset"
   },
   {
    "default": "Scheduled",

@@ -90,20 +90,33 @@ class PartyBooking(Document):
 
     def check_asset_conflict(self):
         """Check if any selected asset is already booked on overlapping dates
-        in any SUBMITTED or DRAFT booking (not cancelled)."""
+        in any SUBMITTED booking (not cancelled). Handles Alternative Assets per session."""
         if not self.assets:
             return
 
-        dates = self.get_booking_dates()
-        if not dates:
+        book_requests = []
+        default_assets = [d.asset_name for d in self.assets if d.asset_name]
+        
+        if self.booking_type == "One-time":
+            if self.party_date:
+                for a in default_assets:
+                    book_requests.append((self.party_date, a))
+        else:
+            for s in self.sessions:
+                if not s.session_date: continue
+                if getattr(s, "alternative_asset", None):
+                    book_requests.append((s.session_date, s.alternative_asset))
+                else:
+                    for a in default_assets:
+                        book_requests.append((s.session_date, a))
+
+        if not book_requests:
             return
 
-        asset_names = [d.asset_name for d in self.assets if d.asset_name]
-        if not asset_names:
-            return
+        all_dates = list(set([req[0] for req in book_requests]))
 
-        # Check conflicts with submitted one-time bookings
-        one_time_conflicts = frappe.db.sql("""
+        # Existing one-time bookings
+        one_time_bookings = frappe.db.sql("""
             SELECT pb.name, pba.asset_name, pb.party_date as conflict_date
             FROM `tabParty Booking` pb
             JOIN `tabParty Booking Asset` pba ON pba.parent = pb.name
@@ -111,37 +124,47 @@ class PartyBooking(Document):
             AND pb.name != %(name)s
             AND pb.booking_type = 'One-time'
             AND pb.party_date IN %(dates)s
-            AND pba.asset_name IN %(assets)s
-        """, {"name": self.name or "NEW", "dates": dates, "assets": asset_names}, as_dict=True)
+        """, {"name": self.name or "NEW", "dates": all_dates}, as_dict=True)
 
-        if one_time_conflicts:
-            c = one_time_conflicts[0]
-            frappe.throw(
-                _("Asset <b>{0}</b> is already booked on <b>{1}</b> in Booking {2}").format(
-                    c.asset_name, c.conflict_date, c.name
-                )
-            )
-
-        # Check conflicts with submitted recurring bookings
-        recurring_conflicts = frappe.db.sql("""
+        # Existing recurring bookings (using default assets)
+        recurring_bookings = frappe.db.sql("""
             SELECT pb.name, pba.asset_name, pbs.session_date as conflict_date
             FROM `tabParty Booking` pb
+            JOIN `tabParty Booking Session` pbs ON pbs.parent = pb.name
             JOIN `tabParty Booking Asset` pba ON pba.parent = pb.name
+            WHERE pb.docstatus = 1
+            AND pb.name != %(name)s
+            AND pb.booking_type = 'Recurring'
+            AND pbs.session_date IN %(dates)s
+            AND (pbs.alternative_asset IS NULL OR pbs.alternative_asset = '')
+        """, {"name": self.name or "NEW", "dates": all_dates}, as_dict=True)
+
+        # Existing recurring bookings (using alternative assets)
+        recurring_alt_bookings = frappe.db.sql("""
+            SELECT pb.name, pbs.alternative_asset as asset_name, pbs.session_date as conflict_date
+            FROM `tabParty Booking` pb
             JOIN `tabParty Booking Session` pbs ON pbs.parent = pb.name
             WHERE pb.docstatus = 1
             AND pb.name != %(name)s
             AND pb.booking_type = 'Recurring'
             AND pbs.session_date IN %(dates)s
-            AND pba.asset_name IN %(assets)s
-        """, {"name": self.name or "NEW", "dates": dates, "assets": asset_names}, as_dict=True)
+            AND pbs.alternative_asset IS NOT NULL
+            AND pbs.alternative_asset != ''
+        """, {"name": self.name or "NEW", "dates": all_dates}, as_dict=True)
 
-        if recurring_conflicts:
-            c = recurring_conflicts[0]
-            frappe.throw(
-                _("Asset <b>{0}</b> is already booked on <b>{1}</b> in Recurring Booking {2}").format(
-                    c.asset_name, c.conflict_date, c.name
+        existing_booked_pairs = {}
+        for b in one_time_bookings + recurring_bookings + recurring_alt_bookings:
+            existing_booked_pairs[(str(b.conflict_date), b.asset_name)] = b.name
+
+        for req_date, req_asset in book_requests:
+            date_str = str(req_date)
+            if (date_str, req_asset) in existing_booked_pairs:
+                conflict_name = existing_booked_pairs[(date_str, req_asset)]
+                frappe.throw(
+                    _("Asset <b>{0}</b> is already booked on <b>{1}</b> in Booking {2}").format(
+                        req_asset, date_str, conflict_name
+                    )
                 )
-            )
 
     def on_submit(self):
         self.update_asset_status("Booked")
@@ -156,12 +179,28 @@ class PartyBooking(Document):
             if d.asset_name:
                 frappe.db.set_value("Asset", d.asset_name, "party_booking_status", status)
                 d.db_set("asset_booking_status", status)
+                
+        if self.booking_type == "Recurring":
+            for s in self.sessions:
+                if getattr(s, "alternative_asset", None):
+                    frappe.db.set_value("Asset", s.alternative_asset, "party_booking_status", status)
 
     def update_asset_status_on_cancel(self):
         """On cancellation, revert only assets that are still 'Booked' (not Damaged)."""
+        used_assets = [d.asset_name for d in self.assets if d.asset_name]
+        
+        if self.booking_type == "Recurring":
+            for s in self.sessions:
+                if getattr(s, "alternative_asset", None):
+                    used_assets.append(s.alternative_asset)
+                    
+        for asset_name in set(used_assets):
+            current_status = frappe.db.get_value("Asset", asset_name, "party_booking_status")
+            if current_status == "Booked":
+                frappe.db.set_value("Asset", asset_name, "party_booking_status", "Available")
+                
+        # Also update child table rows for main assets
         for d in self.assets:
             if d.asset_name:
-                current_status = frappe.db.get_value("Asset", d.asset_name, "party_booking_status")
-                if current_status == "Booked":
-                    frappe.db.set_value("Asset", d.asset_name, "party_booking_status", "Available")
+                if frappe.db.get_value("Asset", d.asset_name, "party_booking_status") == "Available":
                     d.db_set("asset_booking_status", "Available")
