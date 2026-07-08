@@ -8,6 +8,24 @@ from frappe import _
 
 
 class PartyBooking(Document):
+    def before_validate(self):
+        """Auto-create or find Customer based on mobile and name if not provided."""
+        if not self.customer and self.customer_name and self.customer_mobile:
+            customer_mobile_clean = self.customer_mobile.strip()
+            customer_id = frappe.db.get_value("Customer", {"mobile_no": customer_mobile_clean}, "name")
+            if not customer_id:
+                new_customer = frappe.get_doc({
+                    "doctype": "Customer",
+                    "customer_name": self.customer_name.strip(),
+                    "customer_group": "Commercial",
+                    "territory": "All Territories",
+                    "customer_type": "Individual",
+                    "mobile_no": customer_mobile_clean
+                })
+                new_customer.insert(ignore_permissions=True)
+                customer_id = new_customer.name
+            self.customer = customer_id
+
     def validate(self):
         self.validate_party_date()
         self.validate_recurring()

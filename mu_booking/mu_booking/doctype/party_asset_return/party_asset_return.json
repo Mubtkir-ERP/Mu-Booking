@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "party_booking",
+  "customer",
   "customer_name",
   "receiver_mobile",
   "cb_1",
@@ -33,6 +34,15 @@
    "label": "Party Booking",
    "options": "Party Booking",
    "reqd": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "read_only": 1,
+   "fetch_from": "party_booking.customer"
   },
   {
    "fetch_from": "party_booking.customer_name",

@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "customer_section",
+  "customer",
   "customer_name",
   "customer_mobile",
   "receiver_mobile",
@@ -47,18 +48,28 @@
    "label": "Customer Information"
   },
   {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
    "fieldname": "customer_name",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Customer Name",
-   "reqd": 1
+   "read_only": 1,
+   "fetch_from": "customer.customer_name"
   },
   {
    "fieldname": "customer_mobile",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Customer Mobile",
-   "reqd": 1
+   "read_only": 1,
+   "fetch_from": "customer.mobile_no"
   },
   {
    "fieldname": "receiver_mobile",

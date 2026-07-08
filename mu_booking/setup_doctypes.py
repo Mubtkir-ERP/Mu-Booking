@@ -61,8 +61,9 @@ def create_doctypes():
         "is_submittable": 1,
         "fields": [
             {"fieldname": "customer_section", "fieldtype": "Section Break", "label": "Customer Information"},
-            {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "reqd": 1},
-            {"fieldname": "customer_mobile", "fieldtype": "Data", "label": "Customer Mobile", "reqd": 1},
+            {"fieldname": "customer", "fieldtype": "Link", "options": "Customer", "label": "Customer", "reqd": 1, "in_list_view": 1},
+            {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "read_only": 1, "fetch_from": "customer.customer_name", "in_list_view": 1},
+            {"fieldname": "customer_mobile", "fieldtype": "Data", "label": "Customer Mobile", "read_only": 1, "fetch_from": "customer.mobile_no", "in_list_view": 1},
             {"fieldname": "receiver_mobile", "fieldtype": "Data", "label": "Receiver Mobile"},
             {"fieldname": "cb_1", "fieldtype": "Column Break"},
             {"fieldname": "party_location", "fieldtype": "Data", "label": "Party Location"},
@@ -107,8 +108,9 @@ def create_doctypes():
         "autoname": "PAR-.YYYY.-.#####",
         "is_submittable": 1,
         "fields": [
-            {"fieldname": "party_booking", "fieldtype": "Link", "options": "Party Booking", "label": "Party Booking", "reqd": 1},
-            {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "read_only": 1, "fetch_from": "party_booking.customer_name"},
+            {"fieldname": "party_booking", "fieldtype": "Link", "options": "Party Booking", "label": "Party Booking", "reqd": 1, "in_list_view": 1},
+            {"fieldname": "customer", "fieldtype": "Link", "options": "Customer", "label": "Customer", "read_only": 1, "fetch_from": "party_booking.customer", "in_list_view": 1},
+            {"fieldname": "customer_name", "fieldtype": "Data", "label": "Customer Name", "read_only": 1, "fetch_from": "party_booking.customer_name", "in_list_view": 1},
             {"fieldname": "receiver_mobile", "fieldtype": "Data", "label": "Receiver Mobile", "read_only": 1, "fetch_from": "party_booking.receiver_mobile"},
             {"fieldname": "cb_1", "fieldtype": "Column Break"},
             {"fieldname": "original_deposit", "fieldtype": "Currency", "label": "Original Deposit", "read_only": 1, "fetch_from": "party_booking.security_deposit"},

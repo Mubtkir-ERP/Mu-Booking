@@ -64,8 +64,22 @@ def create_bot_booking(
         }
 
     try:
+        # Find or create customer
+        customer_id = frappe.db.get_value("Customer", {"mobile_no": customer_mobile.strip()}, "name")
+        if not customer_id:
+            new_customer = frappe.get_doc({
+                "doctype": "Customer",
+                "customer_name": customer_name.strip(),
+                "customer_group": "Commercial",  # default
+                "territory": "All Territories",  # default
+                "customer_type": "Individual",
+                "mobile_no": customer_mobile.strip()
+            })
+            new_customer.insert(ignore_permissions=True)
+            customer_id = new_customer.name
         booking = frappe.get_doc({
             "doctype": "Party Booking",
+            "customer": customer_id,
             "customer_name": customer_name.strip(),
             "customer_mobile": customer_mobile.strip(),
             "receiver_mobile": receiver_mobile,
@@ -126,3 +140,15 @@ def schedule_reminders():
                 reminder.insert(ignore_permissions=True)
             except Exception as e:
                 frappe.log_error(f"Failed to create reminder for {b.name}: {str(e)}", "Schedule Reminders Error")
+
+@frappe.whitelist(allow_guest=True)
+def export_event_type():
+    try:
+        doc = frappe.get_doc("DocType", "Event Type")
+        doc.custom = 0
+        doc.module = "Mu Booking"
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        return "SUCCESS"
+    except Exception as e:
+        return str(e)
