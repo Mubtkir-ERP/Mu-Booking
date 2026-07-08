@@ -101,3 +101,16 @@ booking_type must be 'One-time' or 'Recurring'.,نوع الحجز يجب أن ي
 Invalid service_type.,نوع خدمة غير صالح.
 A booking already exists for this mobile number on the same date.,يوجد حجز مسبق لهذا الرقم في نفس اليوم.
 Booking created successfully.,تم إنشاء الحجز بنجاح.
+Alternative Asset,الأصل البديل
+"If specified, this asset will be booked for this session instead of the main booking assets.",إذا تم تحديده، سيتم حجز هذا الأصل لهذه الجلسة بدلاً من الأصول الرئيسية.
+Booking Status,حالة الحجز
+Asset Type,نوع الأصل
+Installation & Delivery Report,تقرير التوصيل والتركيب
+End Date cannot be before Start Date.,لا يمكن أن يكون تاريخ الانتهاء قبل تاريخ البدء.
+The following assets are already booked:,عذراً، الأصول التالية محجوزة مسبقاً:
+Please select alternative assets or change the dates for these sessions.,يرجى اختيار أصول بديلة أو تغيير التواريخ لهذه الجلسات.
+Asset Conflict,تعارض في حجز الأصول
+"Asset <b>{0}</b> is already booked on <b>{1}</b> in Booking {2}","الأصل <b>{0}</b> محجوز مسبقاً بتاريخ <b>{1}</b> في الحجز {2}"
+Number of Days/Sessions must be at least 1 for a Daily recurring booking.,يجب أن يكون عدد الأيام/الجلسات 1 على الأقل للحجز المتكرر اليومي.
+Start Date is required for a Daily recurring booking.,تاريخ البدء مطلوب للحجز المتكرر اليومي.
+Please select a Recurring Pattern for a Recurring booking.,يرجى اختيار نمط التكرار للحجز المتكرر.

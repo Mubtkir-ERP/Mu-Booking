@@ -221,9 +221,8 @@
   },
   {
    "fieldname": "invoice_ref",
-   "fieldtype": "Link",
-   "label": "Invoice Reference",
-   "options": "Sales Invoice"
+   "fieldtype": "Data",
+   "label": "Invoice Reference"
   },
   {
    "fieldname": "amended_from",

@@ -156,15 +156,23 @@ class PartyBooking(Document):
         for b in one_time_bookings + recurring_bookings + recurring_alt_bookings:
             existing_booked_pairs[(str(b.conflict_date), b.asset_name)] = b.name
 
+        errors = []
         for req_date, req_asset in book_requests:
             date_str = str(req_date)
             if (date_str, req_asset) in existing_booked_pairs:
                 conflict_name = existing_booked_pairs[(date_str, req_asset)]
-                frappe.throw(
+                errors.append(
                     _("Asset <b>{0}</b> is already booked on <b>{1}</b> in Booking {2}").format(
                         req_asset, date_str, conflict_name
                     )
                 )
+
+        if errors:
+            msg = _("The following assets are already booked:") + "<br><br><ul>"
+            for err in errors:
+                msg += f"<li>{err}</li>"
+            msg += "</ul><br>" + _("Please select alternative assets or change the dates for these sessions.")
+            frappe.throw(msg, title=_("Asset Conflict"))
 
     def on_submit(self):
         self.update_asset_status("Booked")
