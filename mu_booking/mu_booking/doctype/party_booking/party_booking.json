@@ -27,6 +27,8 @@
   "recurring_section",
   "recurring_pattern",
   "start_date",
+  "cb_3",
+  "end_date",
   "number_of_days",
   "weekly_section",
   "saturday",
@@ -42,8 +44,6 @@
   "monthly_week",
   "cb_monthly",
   "monthly_day",
-  "cb_3",
-  "end_date",
   "sessions_section",
   "sessions",
   "assets_section",
@@ -177,6 +177,16 @@
    "label": "Start Date"
   },
   {
+   "fieldname": "cb_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:in_list(['Weekly', 'Monthly'], doc.recurring_pattern)",
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date"
+  },
+  {
    "depends_on": "eval:doc.recurring_pattern=='Daily'",
    "fieldname": "number_of_days",
    "fieldtype": "Int",
@@ -253,16 +263,7 @@
    "label": "Day of the Week",
    "options": "Saturday\nSunday\nMonday\nTuesday\nWednesday\nThursday\nFriday"
   },
-  {
-   "fieldname": "cb_3",
-   "fieldtype": "Column Break"
-  },
-  {
-   "depends_on": "eval:in_list(['Weekly', 'Monthly'], doc.recurring_pattern)",
-   "fieldname": "end_date",
-   "fieldtype": "Date",
-   "label": "End Date"
-  },
+
   {
    "depends_on": "eval:doc.booking_type=='Recurring'",
    "fieldname": "sessions_section",
