@@ -28,6 +28,20 @@
   "recurring_pattern",
   "start_date",
   "number_of_days",
+  "weekly_section",
+  "saturday",
+  "sunday",
+  "monday",
+  "cb_weekly_1",
+  "tuesday",
+  "wednesday",
+  "cb_weekly_2",
+  "thursday",
+  "friday",
+  "monthly_section",
+  "monthly_week",
+  "cb_monthly",
+  "monthly_day",
   "cb_3",
   "end_date",
   "sessions_section",
@@ -157,20 +171,94 @@
    "options": "\nDaily\nWeekly\nMonthly\nManual"
   },
   {
+   "depends_on": "eval:in_list(['Daily', 'Weekly', 'Monthly'], doc.recurring_pattern)",
    "fieldname": "start_date",
    "fieldtype": "Date",
    "label": "Start Date"
   },
   {
+   "depends_on": "eval:doc.recurring_pattern=='Daily'",
    "fieldname": "number_of_days",
    "fieldtype": "Int",
    "label": "Number of Days/Sessions"
+  },
+  {
+   "depends_on": "eval:doc.recurring_pattern=='Weekly'",
+   "fieldname": "weekly_section",
+   "fieldtype": "Section Break",
+   "label": "Weekly Details"
+  },
+  {
+   "fieldname": "saturday",
+   "fieldtype": "Check",
+   "label": "Saturday"
+  },
+  {
+   "fieldname": "sunday",
+   "fieldtype": "Check",
+   "label": "Sunday"
+  },
+  {
+   "fieldname": "monday",
+   "fieldtype": "Check",
+   "label": "Monday"
+  },
+  {
+   "fieldname": "cb_weekly_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tuesday",
+   "fieldtype": "Check",
+   "label": "Tuesday"
+  },
+  {
+   "fieldname": "wednesday",
+   "fieldtype": "Check",
+   "label": "Wednesday"
+  },
+  {
+   "fieldname": "cb_weekly_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "thursday",
+   "fieldtype": "Check",
+   "label": "Thursday"
+  },
+  {
+   "fieldname": "friday",
+   "fieldtype": "Check",
+   "label": "Friday"
+  },
+  {
+   "depends_on": "eval:doc.recurring_pattern=='Monthly'",
+   "fieldname": "monthly_section",
+   "fieldtype": "Section Break",
+   "label": "Monthly Details"
+  },
+  {
+   "fieldname": "monthly_week",
+   "fieldtype": "Select",
+   "label": "Week of the Month",
+   "options": "1st\n2nd\n3rd\n4th\nLast"
+  },
+  {
+   "fieldname": "cb_monthly",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "monthly_day",
+   "fieldtype": "Select",
+   "label": "Day of the Week",
+   "options": "Saturday\nSunday\nMonday\nTuesday\nWednesday\nThursday\nFriday"
   },
   {
    "fieldname": "cb_3",
    "fieldtype": "Column Break"
   },
   {
+   "depends_on": "eval:in_list(['Weekly', 'Monthly'], doc.recurring_pattern)",
    "fieldname": "end_date",
    "fieldtype": "Date",
    "label": "End Date"
