@@ -1,0 +1,169 @@
+{
+ "charts": [],
+ "content": "[{\"type\": \"header\", \"data\": {\"text\": \"Party Booking System\", \"level\": 2, \"col\": 12}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Party Booking\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Party Asset Return\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Assets\", \"col\": 3}}, {\"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Asset Utilization Report\", \"col\": 3}}, {\"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"type\": \"header\", \"data\": {\"text\": \"Masters & Reports\", \"level\": 3, \"col\": 12}}, {\"type\": \"card\", \"data\": {\"card_name\": \"Transactions\", \"col\": 4}}, {\"type\": \"card\", \"data\": {\"card_name\": \"Settings & Masters\", \"col\": 4}}, {\"type\": \"card\", \"data\": {\"card_name\": \"Reports\", \"col\": 4}}]",
+ "creation": "2026-07-07 23:39:51.764793",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "icon": "calender",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Party Bookings",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Transactions",
+   "link_count": 0,
+   "link_to": "",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Party Booking",
+   "link_count": 0,
+   "link_to": "Party Booking",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Party Asset Return",
+   "link_count": 0,
+   "link_to": "Party Asset Return",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Settings & Masters",
+   "link_count": 0,
+   "link_to": "",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Assets",
+   "link_count": 0,
+   "link_to": "Asset",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 0,
+   "link_to": "",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Party Bookings Report",
+   "link_count": 0,
+   "link_to": "Party Bookings Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Party Booking",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Asset Utilization Report",
+   "link_count": 0,
+   "link_to": "Asset Utilization Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Party Booking Asset",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Security Deposit Report",
+   "link_count": 0,
+   "link_to": "Security Deposit Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Party Booking",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Installation & Delivery Report",
+   "link_count": 0,
+   "link_to": "Installation & Delivery Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Party Booking",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Damaged and Lost Assets Report",
+   "link_count": 0,
+   "link_to": "Damaged and Lost Assets Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Party Asset Return",
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-07-07 23:39:52.057898",
+ "modified_by": "Administrator",
+ "module": "Mu Booking",
+ "name": "Party Bookings",
+ "number_cards": [],
+ "owner": "Administrator",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 0.0,
+ "shortcuts": [
+  {
+   "doc_view": "",
+   "label": "Party Booking",
+   "link_to": "Party Booking",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Party Asset Return",
+   "link_to": "Party Asset Return",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Assets",
+   "link_to": "Asset",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Asset Utilization Report",
+   "link_to": "Asset Utilization Report",
+   "report_ref_doctype": "Party Booking Asset",
+   "type": "Report"
+  }
+ ],
+ "title": "Party Bookings"
+}

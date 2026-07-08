@@ -1,0 +1,298 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "PB-.YYYY.-.#####",
+ "creation": "2026-06-18 05:05:51.108527",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "customer_section",
+  "customer_name",
+  "customer_mobile",
+  "receiver_mobile",
+  "cb_1",
+  "party_location",
+  "location_link",
+  "customer_notes",
+  "booking_section",
+  "event_type",
+  "service_type",
+  "booking_type",
+  "cb_2",
+  "party_date",
+  "party_time",
+  "booking_officer",
+  "recurring_section",
+  "recurring_pattern",
+  "start_date",
+  "number_of_days",
+  "cb_3",
+  "end_date",
+  "sessions_section",
+  "sessions",
+  "assets_section",
+  "assets",
+  "financial_section",
+  "security_deposit",
+  "deposit_status",
+  "cb_4",
+  "invoice_ref",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_section",
+   "fieldtype": "Section Break",
+   "label": "Customer Information"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Customer Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "customer_mobile",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Customer Mobile",
+   "reqd": 1
+  },
+  {
+   "fieldname": "receiver_mobile",
+   "fieldtype": "Data",
+   "label": "Receiver Mobile"
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "party_location",
+   "fieldtype": "Data",
+   "label": "Party Location"
+  },
+  {
+   "fieldname": "location_link",
+   "fieldtype": "Data",
+   "label": "Location Link (Google Maps)"
+  },
+  {
+   "fieldname": "customer_notes",
+   "fieldtype": "Small Text",
+   "label": "Customer Notes"
+  },
+  {
+   "fieldname": "booking_section",
+   "fieldtype": "Section Break",
+   "label": "Booking Information"
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Link",
+   "label": "Event Type",
+   "options": "Event Type"
+  },
+  {
+   "default": "Delivery Only",
+   "fieldname": "service_type",
+   "fieldtype": "Select",
+   "label": "Service Type",
+   "options": "Delivery Only\nDelivery and Installation"
+  },
+  {
+   "default": "One-time",
+   "fieldname": "booking_type",
+   "fieldtype": "Select",
+   "label": "Booking Type",
+   "options": "One-time\nRecurring"
+  },
+  {
+   "fieldname": "cb_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "party_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Party Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "party_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Party Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "booking_officer",
+   "fieldtype": "Link",
+   "label": "Booking Officer",
+   "options": "Employee"
+  },
+  {
+   "depends_on": "eval:doc.booking_type=='Recurring'",
+   "fieldname": "recurring_section",
+   "fieldtype": "Section Break",
+   "label": "Recurring Booking Details"
+  },
+  {
+   "fieldname": "recurring_pattern",
+   "fieldtype": "Select",
+   "label": "Recurring Pattern",
+   "options": "\nDaily\nWeekly\nMonthly\nManual"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date"
+  },
+  {
+   "fieldname": "number_of_days",
+   "fieldtype": "Int",
+   "label": "Number of Days/Sessions"
+  },
+  {
+   "fieldname": "cb_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date"
+  },
+  {
+   "depends_on": "eval:doc.booking_type=='Recurring'",
+   "fieldname": "sessions_section",
+   "fieldtype": "Section Break",
+   "label": "Sessions"
+  },
+  {
+   "fieldname": "sessions",
+   "fieldtype": "Table",
+   "label": "Booking Sessions",
+   "options": "Party Booking Session"
+  },
+  {
+   "fieldname": "assets_section",
+   "fieldtype": "Section Break",
+   "label": "Booking Assets"
+  },
+  {
+   "fieldname": "assets",
+   "fieldtype": "Table",
+   "label": "Assets",
+   "options": "Party Booking Asset"
+  },
+  {
+   "fieldname": "financial_section",
+   "fieldtype": "Section Break",
+   "label": "Financial Information"
+  },
+  {
+   "fieldname": "security_deposit",
+   "fieldtype": "Currency",
+   "label": "Security Deposit"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "deposit_status",
+   "fieldtype": "Select",
+   "label": "Deposit Status",
+   "options": "Pending\nRefunded\nPartially Deducted"
+  },
+  {
+   "fieldname": "cb_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invoice_ref",
+   "fieldtype": "Link",
+   "label": "Invoice Reference",
+   "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Party Booking",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-07-05 23:00:55.096900",
+ "modified_by": "Administrator",
+ "module": "Mu Booking",
+ "name": "Party Booking",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Party Booking Officer",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Party Installation Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Party Accountant",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

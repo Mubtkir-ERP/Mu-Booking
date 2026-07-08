@@ -148,23 +148,11 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"mu_booking.tasks.all"
-# 	],
-# 	"daily": [
-# 		"mu_booking.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"mu_booking.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"mu_booking.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"mu_booking.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"hourly": [
+		"mu_booking.api.schedule_reminders"
+	],
+}
 
 # Testing
 # -------
@@ -238,9 +226,9 @@ app_license = "mit"
 # Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
 
-# default_log_clearing_doctypes = {
-# 	"Logging DocType Name": 30  # days to retain logs
-# }
+default_log_clearing_doctypes = {
+	"Party Booking Reminder": 90
+}
 
 # Translation
 # ------------

@@ -1,0 +1,203 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "PAR-.YYYY.-.#####",
+ "creation": "2026-06-18 05:05:51.384823",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "party_booking",
+  "customer_name",
+  "receiver_mobile",
+  "cb_1",
+  "original_deposit",
+  "refund_section",
+  "refund_amount",
+  "deduction_amount",
+  "deduction_reason",
+  "cb_2",
+  "refund_method",
+  "payment_account",
+  "refund_date",
+  "refund_status",
+  "notes_section",
+  "accountant_notes",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "party_booking",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Party Booking",
+   "options": "Party Booking",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "party_booking.customer_name",
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "party_booking.receiver_mobile",
+   "fieldname": "receiver_mobile",
+   "fieldtype": "Data",
+   "label": "Receiver Mobile",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "party_booking.security_deposit",
+   "fieldname": "original_deposit",
+   "fieldtype": "Currency",
+   "label": "Original Deposit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "refund_section",
+   "fieldtype": "Section Break",
+   "label": "Refund Details"
+  },
+  {
+   "fieldname": "refund_amount",
+   "fieldtype": "Currency",
+   "label": "Refund Amount"
+  },
+  {
+   "fieldname": "deduction_amount",
+   "fieldtype": "Currency",
+   "label": "Deduction Amount",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.deduction_amount > 0",
+   "fieldname": "deduction_reason",
+   "fieldtype": "Small Text",
+   "label": "Deduction Reason"
+  },
+  {
+   "fieldname": "cb_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "refund_method",
+   "fieldtype": "Select",
+   "label": "Refund Method",
+   "options": "Cash\nBank Transfer"
+  },
+  {
+   "fieldname": "payment_account",
+   "fieldtype": "Link",
+   "label": "Payment Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "refund_date",
+   "fieldtype": "Date",
+   "label": "Refund Date"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "refund_status",
+   "fieldtype": "Select",
+   "label": "Refund Status",
+   "options": "Pending\nCompleted\nPartially Deducted"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "accountant_notes",
+   "fieldtype": "Text",
+   "label": "Accountant Notes"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Party Asset Return",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-07-05 22:42:18.147358",
+ "modified_by": "Administrator",
+ "module": "Mu Booking",
+ "name": "Party Asset Return",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Party Booking Officer",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Party Installation Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Party Accountant",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
