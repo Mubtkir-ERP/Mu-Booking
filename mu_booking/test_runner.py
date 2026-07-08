@@ -79,7 +79,15 @@ def fix_workspace():
         
         # Also clean up the portal/desk cache
         frappe.clear_cache()
+        # Fix Workflow State colors which override the list view indicators
+        frappe.db.sql("UPDATE `tabWorkflow State` SET style='Danger' WHERE name='Draft'")
+        frappe.db.sql("UPDATE `tabWorkflow State` SET style='Success' WHERE name='Closed' OR name='Completed' OR name='Approved'")
+        frappe.db.sql("UPDATE `tabWorkflow State` SET style='Warning' WHERE name='Pending' OR name='Review'")
+        frappe.db.sql("UPDATE `tabWorkflow State` SET style='Inverse' WHERE name='Cancelled' OR name='Rejected'")
+        frappe.db.sql("UPDATE `tabWorkflow State` SET style='Primary' WHERE name='Submitted'")
+
         frappe.db.commit()
-        return {"status": "success", "message": "DB fixed directly with SQL"}
+        frappe.clear_cache()
+        return {"status": "success", "message": "DB fixed directly with SQL, including Workflow colors"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
