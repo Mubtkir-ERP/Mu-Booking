@@ -6,26 +6,34 @@ from frappe.model.document import Document
 from frappe.utils import flt
 from frappe import _
 
+from mu_booking.mu_booking.doctype.party_booking.party_booking import (
+    STATUS_CLOSED,
+    STATUS_PENDING_RETURN,
+)
+
 # Keywords that indicate an asset was damaged during the party
 DAMAGE_KEYWORDS = ("تلف", "damage", "broken", "مكسور", "خسر", "lost", "ضائع")
 
 
 class PartyAssetReturn(Document):
     def validate(self):
-        self.validate_booking_is_submitted()   # D05 FIX
+        self.validate_booking_is_pending_return()
         self.validate_no_duplicate_return()    # D04 FIX
         self.validate_refund_amount()
         self.calculate_deduction()
 
-    def validate_booking_is_submitted(self):
-        """D05 FIX: Asset Return is only allowed for submitted (confirmed) bookings."""
+    def validate_booking_is_pending_return(self):
+        """Asset Return is only allowed once the booking is waiting for its assets back."""
         if not self.party_booking:
             return
-        docstatus = frappe.db.get_value("Party Booking", self.party_booking, "docstatus")
-        if docstatus != 1:
+        booking = frappe.db.get_value(
+            "Party Booking", self.party_booking, ["docstatus", "status"], as_dict=True
+        )
+        if not booking or booking.docstatus != 1 or booking.status != STATUS_PENDING_RETURN:
             frappe.throw(
-                _("Asset Return can only be created for a submitted (confirmed) Party Booking. "
-                  "Booking {0} is not yet submitted.").format(self.party_booking)
+                _("Asset Return can only be created when Booking {0} is in status {1}.").format(
+                    self.party_booking, _(STATUS_PENDING_RETURN)
+                )
             )
 
     def validate_no_duplicate_return(self):
@@ -87,14 +95,11 @@ class PartyAssetReturn(Document):
                 )
 
     def close_booking(self):
-        """Update booking deposit status and workflow state to Closed."""
+        """Close the booking and record the final deposit status."""
         if not self.party_booking:
             return
-
-        frappe.db.set_value("Party Booking", self.party_booking, {
-            "deposit_status": self.refund_status,
-            "workflow_state": "Closed"
-        })
+        booking = frappe.get_doc("Party Booking", self.party_booking)
+        booking.set_status(STATUS_CLOSED, deposit_status=self.refund_status)
 
     def revert_assets_and_booking(self):
         """On cancellation of return doc, revert assets and booking to their previous state."""
@@ -107,7 +112,4 @@ class PartyAssetReturn(Document):
                 frappe.db.set_value("Asset", d.asset_name, "party_booking_status", "Booked")
                 frappe.db.set_value("Party Booking Asset", d.name, "asset_booking_status", "Booked")
 
-        frappe.db.set_value("Party Booking", self.party_booking, {
-            "deposit_status": "Pending",
-            "workflow_state": "Pending Return"
-        })
+        booking.set_status(STATUS_PENDING_RETURN, deposit_status="Pending")

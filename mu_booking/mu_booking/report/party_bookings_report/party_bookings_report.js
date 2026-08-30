@@ -13,10 +13,10 @@ frappe.query_reports["Party Bookings Report"] = {
             "default": frappe.datetime.get_today()
         },
         {
-            "fieldname": "workflow_state",
-            "label": __("State"),
-            "fieldtype": "Link",
-            "options": "Workflow State"
+            "fieldname": "status",
+            "label": __("Status"),
+            "fieldtype": "Select",
+            "options": "\nDraft\nConfirmed\nDelivery/Installation Scheduled\nExecuted\nPending Return\nClosed\nCancelled"
         },
         {
             "fieldname": "booking_type",

@@ -16,7 +16,7 @@ def get_columns():
         {"fieldname": "event_type", "label": _("Event Type"), "fieldtype": "Link", "options": "Event Type", "width": 120},
         {"fieldname": "service_type", "label": _("Service Type"), "fieldtype": "Data", "width": 150},
         {"fieldname": "booking_type", "label": _("Booking Type"), "fieldtype": "Data", "width": 120},
-        {"fieldname": "workflow_state", "label": _("State"), "fieldtype": "Data", "width": 120}
+        {"fieldname": "status", "label": _("State"), "fieldtype": "Data", "width": 120}
     ]
 
 def get_data(filters):
@@ -31,9 +31,9 @@ def get_data(filters):
         conditions += " AND party_date <= %(to_date)s"
         values["to_date"] = filters.get("to_date")
         
-    if filters.get("workflow_state"):
-        conditions += " AND workflow_state = %(workflow_state)s"
-        values["workflow_state"] = filters.get("workflow_state")
+    if filters.get("status"):
+        conditions += " AND status = %(status)s"
+        values["status"] = filters.get("status")
         
     if filters.get("booking_type"):
         conditions += " AND booking_type = %(booking_type)s"
@@ -42,7 +42,7 @@ def get_data(filters):
     query = f"""
         SELECT 
             name, customer_name, customer_mobile, party_date, party_time,
-            event_type, service_type, booking_type, workflow_state
+            event_type, service_type, booking_type, status
         FROM `tabParty Booking`
         WHERE docstatus < 2 {conditions}
         ORDER BY party_date DESC

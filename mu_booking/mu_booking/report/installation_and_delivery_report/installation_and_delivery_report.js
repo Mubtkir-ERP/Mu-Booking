@@ -13,10 +13,10 @@ frappe.query_reports["Installation and Delivery Report"] = {
             "default": frappe.datetime.get_today()
         },
         {
-            "fieldname": "workflow_state",
+            "fieldname": "status",
             "label": __("Status"),
-            "fieldtype": "Link",
-            "options": "Workflow State"
+            "fieldtype": "Select",
+            "options": "\nDraft\nConfirmed\nDelivery/Installation Scheduled\nExecuted\nPending Return\nClosed\nCancelled"
         }
     ]
 };

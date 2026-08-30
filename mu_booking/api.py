@@ -123,7 +123,7 @@ def schedule_reminders():
         "Party Booking",
         filters={
             "docstatus": 1,
-            "workflow_state": ["in", ["Confirmed", "Delivery/Installation Scheduled"]],
+            "status": ["in", ["Confirmed", "Delivery/Installation Scheduled"]],
             "party_date": target_date
         },
         fields=["name", "customer_name"]

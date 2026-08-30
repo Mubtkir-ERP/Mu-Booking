@@ -15,15 +15,17 @@
   "cb_1",
   "party_location",
   "location_link",
+  "open_map",
   "customer_notes",
   "booking_section",
   "event_type",
   "service_type",
   "booking_type",
+  "status",
   "cb_2",
   "party_date",
   "party_time",
-  "booking_officer",
+  "installation_manager",
   "recurring_section",
   "recurring_pattern",
   "start_date",
@@ -48,6 +50,7 @@
   "sessions",
   "assets_section",
   "assets",
+  "assets_gallery",
   "financial_section",
   "security_deposit",
   "deposit_status",
@@ -70,20 +73,20 @@
    "reqd": 1
   },
   {
+   "fetch_from": "customer.customer_name",
    "fieldname": "customer_name",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Customer Name",
-   "read_only": 1,
-   "fetch_from": "customer.customer_name"
+   "read_only": 1
   },
   {
+   "fetch_from": "customer.mobile_no",
    "fieldname": "customer_mobile",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Customer Mobile",
-   "read_only": 1,
-   "fetch_from": "customer.mobile_no"
+   "read_only": 1
   },
   {
    "fieldname": "receiver_mobile",
@@ -103,6 +106,12 @@
    "fieldname": "location_link",
    "fieldtype": "Data",
    "label": "Location Link (Google Maps)"
+  },
+  {
+   "depends_on": "eval:doc.location_link",
+   "fieldname": "open_map",
+   "fieldtype": "Button",
+   "label": "Open Location on Map"
   },
   {
    "fieldname": "customer_notes",
@@ -135,6 +144,18 @@
    "options": "One-time\nRecurring"
   },
   {
+   "allow_on_submit": 1,
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Draft\nConfirmed\nDelivery/Installation Scheduled\nExecuted\nPending Return\nClosed\nCancelled",
+   "read_only": 1
+  },
+  {
    "fieldname": "cb_2",
    "fieldtype": "Column Break"
   },
@@ -153,9 +174,11 @@
    "reqd": 1
   },
   {
-   "fieldname": "booking_officer",
+   "allow_on_submit": 1,
+   "fieldname": "installation_manager",
    "fieldtype": "Link",
-   "label": "Booking Officer",
+   "in_standard_filter": 1,
+   "label": "Installation Manager",
    "options": "Employee"
   },
   {
@@ -263,7 +286,6 @@
    "label": "Day of the Week",
    "options": "Saturday\nSunday\nMonday\nTuesday\nWednesday\nThursday\nFriday"
   },
-
   {
    "depends_on": "eval:doc.booking_type=='Recurring'",
    "fieldname": "sessions_section",
@@ -286,6 +308,11 @@
    "fieldtype": "Table",
    "label": "Assets",
    "options": "Party Booking Asset"
+  },
+  {
+   "fieldname": "assets_gallery",
+   "fieldtype": "HTML",
+   "label": "Asset Gallery"
   },
   {
    "fieldname": "financial_section",
@@ -328,7 +355,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-05 23:00:55.096900",
+ "modified": "2026-08-30 13:00:51.040328",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Booking",
@@ -391,6 +418,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "customer_name,event_type,party_date",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

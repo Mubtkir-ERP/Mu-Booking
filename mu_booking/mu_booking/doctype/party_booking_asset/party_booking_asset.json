@@ -8,12 +8,15 @@
  "field_order": [
   "asset_type",
   "asset_name",
+  "asset_title",
+  "asset_value",
   "qty",
   "asset_booking_status",
   "notes"
  ],
  "fields": [
   {
+   "columns": 2,
    "fieldname": "asset_type",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -21,6 +24,7 @@
    "options": "Item Group"
   },
   {
+   "columns": 2,
    "fieldname": "asset_name",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -28,6 +32,25 @@
    "options": "Asset"
   },
   {
+   "columns": 2,
+   "fetch_from": "asset_name.asset_name",
+   "fieldname": "asset_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Asset Name",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fetch_from": "asset_name.gross_purchase_amount",
+   "fieldname": "asset_value",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Asset Value",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
    "default": "1",
    "fieldname": "qty",
    "fieldtype": "Int",
@@ -35,6 +58,7 @@
    "label": "Quantity"
   },
   {
+   "columns": 1,
    "default": "Booked",
    "fieldname": "asset_booking_status",
    "fieldtype": "Select",
@@ -52,7 +76,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-06-18 05:05:50.132734",
+ "modified": "2026-08-30 13:00:51.040328",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Booking Asset",

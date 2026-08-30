@@ -1,11 +1,62 @@
 # Copyright (c) 2026, Mu Booking and contributors
 # For license information, please see license.txt
 
-import frappe
-from frappe.model.document import Document
-from frappe.utils import add_days, add_months, getdate, today, cstr
-from frappe import _
 import calendar
+
+import frappe
+from frappe import _
+from frappe.model.document import Document
+from frappe.utils import add_days, add_months, cstr, getdate, today
+
+# Booking lifecycle statuses
+STATUS_DRAFT = "Draft"
+STATUS_CONFIRMED = "Confirmed"
+STATUS_SCHEDULED = "Delivery/Installation Scheduled"
+STATUS_EXECUTED = "Executed"
+STATUS_PENDING_RETURN = "Pending Return"
+STATUS_CLOSED = "Closed"
+STATUS_CANCELLED = "Cancelled"
+
+ROLE_ADMIN = "System Manager"
+ROLE_OFFICER = "Party Booking Officer"
+ROLE_INSTALLER = "Party Installation Manager"
+ROLE_ACCOUNTANT = "Party Accountant"
+
+# Actions available after confirmation, triggered by form buttons.
+# Each action moves the booking from `from` to `to` and is restricted to `roles`
+# (System Manager is always allowed). Labels are translated when served.
+BOOKING_ACTIONS = {
+    "schedule": {
+        "label": "Schedule Delivery/Installation",
+        "from": STATUS_CONFIRMED,
+        "to": STATUS_SCHEDULED,
+        "roles": [ROLE_INSTALLER],
+        "requires_installation_manager": True,
+    },
+    "execute": {
+        "label": "Mark as Executed",
+        "from": STATUS_SCHEDULED,
+        "to": STATUS_EXECUTED,
+        "roles": [ROLE_INSTALLER],
+    },
+    "await_return": {
+        "label": "Wait for Return",
+        "from": STATUS_EXECUTED,
+        "to": STATUS_PENDING_RETURN,
+        "roles": [ROLE_INSTALLER],
+    },
+}
+CONFIRM_ROLES = [ROLE_OFFICER]
+CANCEL_ROLES = [ROLE_OFFICER]
+CANCELLABLE_STATUSES = (STATUS_CONFIRMED, STATUS_SCHEDULED)
+RETURN_ROLES = [ROLE_ACCOUNTANT]
+
+
+def user_has_role(roles):
+    """Return True if the current user has any of `roles` (System Manager always passes)."""
+    user_roles = set(frappe.get_roles())
+    return ROLE_ADMIN in user_roles or bool(user_roles & set(roles))
+
 
 def get_nth_weekday_of_month(year, month, week_str, weekday_int):
     c = calendar.Calendar(firstweekday=calendar.MONDAY)
@@ -42,6 +93,8 @@ class PartyBooking(Document):
             self.customer = customer_id
 
     def validate(self):
+        if self.docstatus == 0:
+            self.status = STATUS_DRAFT
         self.validate_party_date()
         self.validate_recurring()
         self.generate_recurring_sessions()
@@ -251,12 +304,29 @@ class PartyBooking(Document):
             msg += "</ul><br>" + _("Please select alternative assets or change the dates for these sessions.")
             frappe.throw(msg, title=_("Asset Conflict"))
 
+    def before_submit(self):
+        if not user_has_role(CONFIRM_ROLES):
+            frappe.throw(_("Only the Booking Officer can confirm a booking."), frappe.PermissionError)
+        self.status = STATUS_CONFIRMED
+
     def on_submit(self):
         self.update_asset_status("Booked")
+
+    def before_cancel(self):
+        if not user_has_role(CANCEL_ROLES):
+            frappe.throw(_("Only the Booking Officer can cancel a booking."), frappe.PermissionError)
+        if self.status not in CANCELLABLE_STATUSES:
+            frappe.throw(_("A booking in status {0} cannot be cancelled.").format(_(self.status)))
+        self.status = STATUS_CANCELLED
 
     def on_cancel(self):
         """Revert asset status to Available, but only if it was Booked (not Damaged)."""
         self.update_asset_status_on_cancel()
+
+    def set_status(self, status, **extra_values):
+        """Persist a new lifecycle status on a submitted booking and log it in the timeline."""
+        self.db_set({"status": status, **extra_values}, notify=True)
+        self.add_comment("Info", _("Status changed to {0}").format(_(status)))
 
     def update_asset_status(self, status):
         """Set all booking assets to the given status."""
@@ -289,3 +359,61 @@ class PartyBooking(Document):
             if d.asset_name:
                 if frappe.db.get_value("Asset", d.asset_name, "party_booking_status") == "Available":
                     d.db_set("asset_booking_status", "Available")
+
+
+@frappe.whitelist()
+def get_allowed_actions(name):
+    """Return the lifecycle buttons the current user may use on this booking."""
+    doc = frappe.get_doc("Party Booking", name)
+    doc.check_permission("read")
+
+    actions = [
+        {
+            "action": key,
+            "label": _(cfg["label"]),
+            "requires_installation_manager": bool(cfg.get("requires_installation_manager")),
+        }
+        for key, cfg in BOOKING_ACTIONS.items()
+        if doc.docstatus == 1 and doc.status == cfg["from"] and user_has_role(cfg["roles"])
+    ]
+    has_open_return = frappe.db.exists(
+        "Party Asset Return", {"party_booking": name, "docstatus": ["<", 2]}
+    )
+    return {
+        "actions": actions,
+        "can_confirm": doc.docstatus == 0 and user_has_role(CONFIRM_ROLES),
+        "can_cancel": doc.docstatus == 1
+        and doc.status in CANCELLABLE_STATUSES
+        and user_has_role(CANCEL_ROLES),
+        "can_create_return": doc.docstatus == 1
+        and doc.status == STATUS_PENDING_RETURN
+        and user_has_role(RETURN_ROLES)
+        and not has_open_return,
+    }
+
+
+@frappe.whitelist()
+def apply_action(name, action, installation_manager=None):
+    """Move a submitted booking to the next status after validating role and current status."""
+    cfg = BOOKING_ACTIONS.get(action)
+    if not cfg:
+        frappe.throw(_("Unknown action: {0}").format(action))
+
+    doc = frappe.get_doc("Party Booking", name)
+    doc.check_permission("write")
+
+    if doc.docstatus != 1 or doc.status != cfg["from"]:
+        frappe.throw(
+            _("This action is not allowed while the booking is in status {0}.").format(_(doc.status))
+        )
+    if not user_has_role(cfg["roles"]):
+        frappe.throw(_("You are not allowed to perform this action."), frappe.PermissionError)
+
+    extra_values = {}
+    if cfg.get("requires_installation_manager"):
+        if not installation_manager:
+            frappe.throw(_("Please select the Installation Manager."))
+        extra_values["installation_manager"] = installation_manager
+
+    doc.set_status(cfg["to"], **extra_values)
+    return doc.status
