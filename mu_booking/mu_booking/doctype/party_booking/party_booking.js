@@ -57,7 +57,9 @@ function render_action_buttons(frm) {
 	frappe.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.get_allowed_actions", {
 		name: frm.doc.name,
 	}).then((r) => {
-		// Replace Frappe's default Submit/Cancel primary action with role-specific buttons
+		// Replace Frappe's default Submit (primary) and Cancel (secondary) actions
+		// with role-specific buttons
+		frm.page.clear_secondary_action();
 		if (r.can_confirm) {
 			frm.page.set_primary_action(__("Confirm Booking"), () => frm.savesubmit());
 		} else {
@@ -65,21 +67,26 @@ function render_action_buttons(frm) {
 		}
 
 		r.actions.forEach((action) => {
-			frm.add_custom_button(action.label, () => run_action(frm, action)).addClass("btn-primary");
+			add_styled_button(frm, action.label, () => run_action(frm, action), "btn-primary");
 		});
 
 		if (r.can_create_return) {
-			frm.add_custom_button(__("Create Asset Return"), () => {
+			add_styled_button(frm, __("Create Asset Return"), () => {
 				frappe.new_doc("Party Asset Return", { party_booking: frm.doc.name });
-			}).addClass("btn-primary");
+			}, "btn-primary");
 		}
 
 		if (r.can_cancel) {
-			frm.add_custom_button(__("Cancel Booking"), () => {
+			add_styled_button(frm, __("Cancel Booking"), () => {
 				frappe.confirm(__("Are you sure you want to cancel this booking?"), () => frm.savecancel());
-			}).addClass("btn-danger");
+			}, "btn-danger");
 		}
 	});
+}
+
+// Custom buttons come with `btn-default`, which overrides the colored variants
+function add_styled_button(frm, label, handler, css_class) {
+	return frm.add_custom_button(label, handler).removeClass("btn-default").addClass(css_class);
 }
 
 function run_action(frm, action) {
