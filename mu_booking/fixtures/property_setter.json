@@ -1,1 +1,34 @@
-[]
+[
+ {
+  "default_value": null,
+  "doc_type": "Employee",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocType",
+  "field_name": null,
+  "is_system_generated": 1,
+  "modified": "2026-08-31 16:13:45.387765",
+  "module": "Mu Booking",
+  "name": "Employee-main-show_title_field_in_link",
+  "property": "show_title_field_in_link",
+  "property_type": "Check",
+  "row_name": null,
+  "value": "1"
+ },
+ {
+  "default_value": null,
+  "doc_type": "Employee",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocType",
+  "field_name": null,
+  "is_system_generated": 1,
+  "modified": "2026-08-31 16:13:45.465142",
+  "module": "Mu Booking",
+  "name": "Employee-main-search_fields",
+  "property": "search_fields",
+  "property_type": "Data",
+  "row_name": null,
+  "value": "employee_name, employee_number, cell_number"
+ }
+]
