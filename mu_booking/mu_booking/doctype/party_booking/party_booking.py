@@ -222,51 +222,8 @@ class PartyBooking(Document):
         if not requested_assets:
             return
 
-        # Assets picked in the assets table of an active booking
-        main_conflicts = frappe.db.sql(
-            """
-            SELECT pb.name, pba.asset_name AS asset
-            FROM `tabParty Booking` pb
-            JOIN `tabParty Booking Asset` pba ON pba.parent = pb.name
-            WHERE pb.docstatus = 1
-              AND pb.status NOT IN (%(closed)s, %(cancelled)s)
-              AND pb.name != %(name)s
-              AND pba.asset_name IN %(assets)s
-            """,
-            {
-                "closed": STATUS_CLOSED,
-                "cancelled": STATUS_CANCELLED,
-                "name": self.name or "NEW",
-                "assets": tuple(requested_assets),
-            },
-            as_dict=True,
-        )
-
-        # Assets picked as per-session alternatives in an active booking
-        alt_conflicts = frappe.db.sql(
-            """
-            SELECT pb.name, pbs.alternative_asset AS asset
-            FROM `tabParty Booking` pb
-            JOIN `tabParty Booking Session` pbs ON pbs.parent = pb.name
-            WHERE pb.docstatus = 1
-              AND pb.status NOT IN (%(closed)s, %(cancelled)s)
-              AND pb.name != %(name)s
-              AND pbs.alternative_asset IN %(assets)s
-            """,
-            {
-                "closed": STATUS_CLOSED,
-                "cancelled": STATUS_CANCELLED,
-                "name": self.name or "NEW",
-                "assets": tuple(requested_assets),
-            },
-            as_dict=True,
-        )
-
-        blocking_booking_by_asset = {}
-        for row in main_conflicts + alt_conflicts:
-            blocking_booking_by_asset.setdefault(row.asset, row.name)
-
-        if not blocking_booking_by_asset:
+        blocking = get_active_bookings_holding(requested_assets, exclude=self.name)
+        if not blocking:
             return
 
         items = "".join(
@@ -275,7 +232,7 @@ class PartyBooking(Document):
                 asset, frappe.utils.get_link_to_form("Party Booking", booking)
             )
             + "</li>"
-            for asset, booking in sorted(blocking_booking_by_asset.items())
+            for asset, booking in sorted(blocking.items())
         )
         frappe.throw(
             _("The following assets are not available:")
@@ -397,3 +354,58 @@ def apply_action(name, action, installation_manager=None):
 
     doc.set_status(cfg["to"], **extra_values)
     return doc.status
+
+
+def get_active_bookings_holding(assets, exclude=None):
+    """Return {asset: booking_name} for assets held by an active submitted booking.
+
+    Active means submitted and neither Closed (returned) nor Cancelled --
+    such an asset is unavailable for any other booking, on any date.
+    """
+    assets = list(assets)
+    if not assets:
+        return {}
+
+    params = {
+        "closed": STATUS_CLOSED,
+        "cancelled": STATUS_CANCELLED,
+        "name": exclude or "NEW",
+        "assets": tuple(assets),
+    }
+    main_conflicts = frappe.db.sql(
+        """
+        SELECT pb.name, pba.asset_name AS asset
+        FROM `tabParty Booking` pb
+        JOIN `tabParty Booking Asset` pba ON pba.parent = pb.name
+        WHERE pb.docstatus = 1
+          AND pb.status NOT IN (%(closed)s, %(cancelled)s)
+          AND pb.name != %(name)s
+          AND pba.asset_name IN %(assets)s
+        """,
+        params,
+        as_dict=True,
+    )
+    alt_conflicts = frappe.db.sql(
+        """
+        SELECT pb.name, pbs.alternative_asset AS asset
+        FROM `tabParty Booking` pb
+        JOIN `tabParty Booking Session` pbs ON pbs.parent = pb.name
+        WHERE pb.docstatus = 1
+          AND pb.status NOT IN (%(closed)s, %(cancelled)s)
+          AND pb.name != %(name)s
+          AND pbs.alternative_asset IN %(assets)s
+        """,
+        params,
+        as_dict=True,
+    )
+
+    blocking = {}
+    for row in main_conflicts + alt_conflicts:
+        blocking.setdefault(row.asset, row.name)
+    return blocking
+
+
+@frappe.whitelist()
+def get_asset_holding_booking(asset, exclude_booking=None):
+    """Return the active booking holding this asset (for instant warnings in the form)."""
+    return get_active_bookings_holding([asset], exclude=exclude_booking).get(asset)

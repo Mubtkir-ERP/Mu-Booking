@@ -30,16 +30,45 @@ frappe.ui.form.on("Party Booking", {
 });
 
 frappe.ui.form.on("Party Booking Asset", {
-	asset_name(frm) {
+	asset_name(frm, cdt, cdn) {
 		// Frappe may rebuild the grid row when the fetched asset fields arrive,
 		// which can make it scroll the page back to the top - keep the position
 		guard_scroll_position();
 		render_asset_gallery(frm);
+		warn_if_asset_unavailable(frm, locals[cdt][cdn].asset_name);
 	},
 	assets_remove(frm) {
 		render_asset_gallery(frm);
 	},
 });
+
+frappe.ui.form.on("Party Booking Session", {
+	alternative_asset(frm, cdt, cdn) {
+		warn_if_asset_unavailable(frm, locals[cdt][cdn].alternative_asset);
+	},
+});
+
+// Warn the moment an asset is picked if it is still held by an active booking
+function warn_if_asset_unavailable(frm, asset) {
+	if (!asset) {
+		return;
+	}
+	frappe.xcall(
+		"mu_booking.mu_booking.doctype.party_booking.party_booking.get_asset_holding_booking",
+		{ asset, exclude_booking: frm.doc.name }
+	).then((holding_booking) => {
+		if (holding_booking) {
+			frappe.msgprint({
+				title: __("Asset Not Available"),
+				indicator: "orange",
+				message: __(
+					"Asset <b>{0}</b> is held by active Booking {1} and has not been returned yet",
+					[asset, `<a href="/app/party-booking/${encodeURIComponent(holding_booking)}">${holding_booking}</a>`]
+				),
+			});
+		}
+	});
+}
 
 function guard_scroll_position() {
 	const scroller = document.scrollingElement;

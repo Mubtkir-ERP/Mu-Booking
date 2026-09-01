@@ -59,12 +59,12 @@
   },
   {
    "columns": 1,
-   "default": "Booked",
+   "default": "Available",
    "fieldname": "asset_booking_status",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Booking Status",
-   "options": "Booked\nDelivered\nReturned\nDamaged"
+   "options": "Available\nBooked\nDelivered\nReturned\nDamaged"
   },
   {
    "fieldname": "notes",
@@ -76,7 +76,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-30 13:00:51.040328",
+ "modified": "2026-09-01 13:36:27.590847",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Booking Asset",
