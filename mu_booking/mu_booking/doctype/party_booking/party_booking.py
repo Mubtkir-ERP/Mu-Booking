@@ -206,103 +206,83 @@ class PartyBooking(Document):
                     "session_status": "Scheduled"
                 })
 
-    def get_booking_dates(self):
-        """Return list of unique dates covered by this booking."""
-        dates = []
-        if self.booking_type == "One-time":
-            if self.party_date:
-                dates.append(str(self.party_date))
-        else:
-            for s in self.sessions:
-                if s.session_date:
-                    dates.append(str(s.session_date))
-        return list(set(dates))
-
     def check_asset_conflict(self):
-        """Check if any selected asset is already booked on overlapping dates
-        in any SUBMITTED booking (not cancelled). Handles Alternative Assets per session."""
-        if not self.assets:
+        """Block booking any asset that belongs to an active (not yet returned) booking.
+
+        Per the business rules, an asset does not become available when a party
+        date passes -- only when its Asset Return document is submitted and the
+        booking is closed (or the booking is cancelled). So one active submitted
+        booking locks the asset for any other date.
+        """
+        requested_assets = {d.asset_name for d in self.assets if d.asset_name}
+        for session in self.sessions or []:
+            if getattr(session, "alternative_asset", None):
+                requested_assets.add(session.alternative_asset)
+
+        if not requested_assets:
             return
 
-        book_requests = []
-        default_assets = [d.asset_name for d in self.assets if d.asset_name]
-        
-        if self.booking_type == "One-time":
-            if self.party_date:
-                for a in default_assets:
-                    book_requests.append((self.party_date, a))
-        else:
-            for s in self.sessions:
-                if not s.session_date: continue
-                if getattr(s, "alternative_asset", None):
-                    book_requests.append((s.session_date, s.alternative_asset))
-                else:
-                    for a in default_assets:
-                        book_requests.append((s.session_date, a))
-
-        if not book_requests:
-            return
-
-        all_dates = list(set([req[0] for req in book_requests]))
-
-        # Existing one-time bookings
-        one_time_bookings = frappe.db.sql("""
-            SELECT pb.name, pba.asset_name, pb.party_date as conflict_date
+        # Assets picked in the assets table of an active booking
+        main_conflicts = frappe.db.sql(
+            """
+            SELECT pb.name, pba.asset_name AS asset
             FROM `tabParty Booking` pb
             JOIN `tabParty Booking Asset` pba ON pba.parent = pb.name
             WHERE pb.docstatus = 1
-            AND pb.name != %(name)s
-            AND pb.booking_type = 'One-time'
-            AND pb.party_date IN %(dates)s
-        """, {"name": self.name or "NEW", "dates": all_dates}, as_dict=True)
+              AND pb.status NOT IN (%(closed)s, %(cancelled)s)
+              AND pb.name != %(name)s
+              AND pba.asset_name IN %(assets)s
+            """,
+            {
+                "closed": STATUS_CLOSED,
+                "cancelled": STATUS_CANCELLED,
+                "name": self.name or "NEW",
+                "assets": tuple(requested_assets),
+            },
+            as_dict=True,
+        )
 
-        # Existing recurring bookings (using default assets)
-        recurring_bookings = frappe.db.sql("""
-            SELECT pb.name, pba.asset_name, pbs.session_date as conflict_date
-            FROM `tabParty Booking` pb
-            JOIN `tabParty Booking Session` pbs ON pbs.parent = pb.name
-            JOIN `tabParty Booking Asset` pba ON pba.parent = pb.name
-            WHERE pb.docstatus = 1
-            AND pb.name != %(name)s
-            AND pb.booking_type = 'Recurring'
-            AND pbs.session_date IN %(dates)s
-            AND (pbs.alternative_asset IS NULL OR pbs.alternative_asset = '')
-        """, {"name": self.name or "NEW", "dates": all_dates}, as_dict=True)
-
-        # Existing recurring bookings (using alternative assets)
-        recurring_alt_bookings = frappe.db.sql("""
-            SELECT pb.name, pbs.alternative_asset as asset_name, pbs.session_date as conflict_date
+        # Assets picked as per-session alternatives in an active booking
+        alt_conflicts = frappe.db.sql(
+            """
+            SELECT pb.name, pbs.alternative_asset AS asset
             FROM `tabParty Booking` pb
             JOIN `tabParty Booking Session` pbs ON pbs.parent = pb.name
             WHERE pb.docstatus = 1
-            AND pb.name != %(name)s
-            AND pb.booking_type = 'Recurring'
-            AND pbs.session_date IN %(dates)s
-            AND pbs.alternative_asset IS NOT NULL
-            AND pbs.alternative_asset != ''
-        """, {"name": self.name or "NEW", "dates": all_dates}, as_dict=True)
+              AND pb.status NOT IN (%(closed)s, %(cancelled)s)
+              AND pb.name != %(name)s
+              AND pbs.alternative_asset IN %(assets)s
+            """,
+            {
+                "closed": STATUS_CLOSED,
+                "cancelled": STATUS_CANCELLED,
+                "name": self.name or "NEW",
+                "assets": tuple(requested_assets),
+            },
+            as_dict=True,
+        )
 
-        existing_booked_pairs = {}
-        for b in one_time_bookings + recurring_bookings + recurring_alt_bookings:
-            existing_booked_pairs[(str(b.conflict_date), b.asset_name)] = b.name
+        blocking_booking_by_asset = {}
+        for row in main_conflicts + alt_conflicts:
+            blocking_booking_by_asset.setdefault(row.asset, row.name)
 
-        errors = []
-        for req_date, req_asset in book_requests:
-            date_str = str(req_date)
-            if (date_str, req_asset) in existing_booked_pairs:
-                conflict_name = existing_booked_pairs[(date_str, req_asset)]
-                errors.append(
-                    _("Asset <b>{0}</b> is already booked on <b>{1}</b> in Booking {2}").format(
-                        req_asset, date_str, conflict_name
-                    )
-                )
+        if not blocking_booking_by_asset:
+            return
 
-        if errors:
-            msg = _("The following assets are already booked:") + "<br><br><ul>"
-            for err in errors:
-                msg += f"<li>{err}</li>"
-            msg += "</ul><br>" + _("Please select alternative assets or change the dates for these sessions.")
-            frappe.throw(msg, title=_("Asset Conflict"))
+        items = "".join(
+            "<li>"
+            + _("Asset <b>{0}</b> is held by active Booking {1} and has not been returned yet").format(
+                asset, frappe.utils.get_link_to_form("Party Booking", booking)
+            )
+            + "</li>"
+            for asset, booking in sorted(blocking_booking_by_asset.items())
+        )
+        frappe.throw(
+            _("The following assets are not available:")
+            + f"<br><br><ul>{items}</ul><br>"
+            + _("An asset becomes available only after its Asset Return document is submitted."),
+            title=_("Asset Not Available"),
+        )
 
     def before_submit(self):
         if not user_has_role(CONFIRM_ROLES):

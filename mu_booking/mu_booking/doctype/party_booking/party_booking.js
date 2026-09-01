@@ -31,12 +31,30 @@ frappe.ui.form.on("Party Booking", {
 
 frappe.ui.form.on("Party Booking Asset", {
 	asset_name(frm) {
+		// Frappe may rebuild the grid row when the fetched asset fields arrive,
+		// which can make it scroll the page back to the top - keep the position
+		guard_scroll_position();
 		render_asset_gallery(frm);
 	},
 	assets_remove(frm) {
 		render_asset_gallery(frm);
 	},
 });
+
+function guard_scroll_position() {
+	const scroller = document.scrollingElement;
+	const y = scroller.scrollTop;
+	if (y < 200) {
+		return;
+	}
+	const restore = () => {
+		if (scroller.scrollTop < y - 200) {
+			$("html, body").stop(true);
+			scroller.scrollTop = y;
+		}
+	};
+	[100, 300, 600].forEach((delay) => setTimeout(restore, delay));
+}
 
 function calculate_daily_end_date(frm) {
 	if (frm.doc.recurring_pattern === "Daily" && frm.doc.start_date && frm.doc.number_of_days > 0) {
@@ -57,6 +75,9 @@ function render_action_buttons(frm) {
 	frappe.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.get_allowed_actions", {
 		name: frm.doc.name,
 	}).then((r) => {
+		if (frm.is_dirty()) {
+			return; // the user started editing meanwhile - keep the Save button
+		}
 		// Replace Frappe's default Submit (primary) and Cancel (secondary) actions
 		// with role-specific buttons
 		frm.page.clear_secondary_action();
@@ -136,7 +157,14 @@ function apply_action(frm, action, extra_args = {}) {
 
 function render_asset_gallery(frm) {
 	const wrapper = frm.get_field("assets_gallery").$wrapper;
-	const asset_names = [...new Set((frm.doc.assets || []).map((row) => row.asset_name).filter(Boolean))];
+	const asset_names = [...new Set((frm.doc.assets || []).map((row) => row.asset_name).filter(Boolean))].sort();
+
+	// Skip when nothing changed (refresh calls this too)
+	const key = asset_names.join("|");
+	if (frm._assets_gallery_key === key) {
+		return;
+	}
+	frm._assets_gallery_key = key;
 
 	if (!asset_names.length) {
 		wrapper.empty();

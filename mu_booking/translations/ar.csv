@@ -141,3 +141,11 @@ This action is not allowed while the booking is in status {0}.,هذا الإجر
 You are not allowed to perform this action.,غير مصرح لك بتنفيذ هذا الإجراء.
 Unknown action: {0},إجراء غير معروف: {0}
 Asset Return can only be created when Booking {0} is in status {1}.,لا يمكن إنشاء مستند الإرجاع إلا عندما يكون الحجز {0} في الحالة {1}.
+Asset <b>{0}</b> is held by active Booking {1} and has not been returned yet,الأصل <b>{0}</b> محجوز في الحجز النشط {1} ولم يتم إرجاعه بعد
+The following assets are not available:,الأصول التالية غير متاحة:
+An asset becomes available only after its Asset Return document is submitted.,الأصل يصبح متاحاً فقط بعد اعتماد مستند إرجاع الأصول الخاص به.
+Asset Not Available,الأصل غير متاح
+The following assets are not available:,الأصول التالية غير متاحة:
+Asset <b>{0}</b> is held by active Booking {1} and has not been returned yet,الأصل <b>{0}</b> محجوز في الحجز النشط {1} ولم يتم استرجاعه بعد
+An asset becomes available only after its Asset Return document is submitted.,الأصل لا يصبح متاحاً إلا بعد اعتماد مستند استرجاع الأصول الخاص به.
+Asset Not Available,الأصل غير متاح
