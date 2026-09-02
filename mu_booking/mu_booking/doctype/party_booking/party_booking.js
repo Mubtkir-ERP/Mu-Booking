@@ -9,6 +9,14 @@ frappe.ui.form.on("Party Booking", {
 		frm.set_query("alternative_asset", "sessions", () => ({ filters: AVAILABLE_ASSET_FILTERS }));
 	},
 
+	onload(frm) {
+		// Open new bookings with one empty asset row ready to fill
+		if (frm.is_new() && !(frm.doc.assets || []).length) {
+			frm.add_child("assets");
+			frm.refresh_field("assets");
+		}
+	},
+
 	refresh(frm) {
 		render_action_buttons(frm);
 		render_asset_gallery(frm);
@@ -36,6 +44,9 @@ frappe.ui.form.on("Party Booking Asset", {
 		guard_scroll_position();
 		render_asset_gallery(frm);
 		warn_if_asset_unavailable(frm, locals[cdt][cdn].asset_name);
+	},
+	assets_add(frm) {
+		guard_scroll_position();
 	},
 	assets_remove(frm) {
 		render_asset_gallery(frm);
