@@ -24,7 +24,9 @@
   "refund_status",
   "notes_section",
   "accountant_notes",
-  "amended_from"
+  "amended_from",
+  "employee_guide_section",
+  "employee_guide_html"
  ],
  "fields": [
   {
@@ -140,6 +142,17 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "employee_guide_section",
+   "fieldtype": "Section Break",
+   "label": "Employee Usage Guide (ع / E)"
+  },
+  {
+   "fieldname": "employee_guide_html",
+   "fieldtype": "HTML",
+   "label": "Employee Usage Guide"
   }
  ],
  "grid_page_length": 50,
