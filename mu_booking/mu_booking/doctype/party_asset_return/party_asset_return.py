@@ -74,6 +74,15 @@ class PartyAssetReturn(Document):
         """Deduction = Original Deposit - Refund Amount (never negative)."""
         self.deduction_amount = max(flt(self.original_deposit) - flt(self.refund_amount), 0)
 
+    def before_submit(self):
+        allowed_roles = {"Party Accountant", "Party Booking Manager", "System Manager"}
+        user_roles = set(frappe.get_roles(frappe.session.user))
+        if frappe.session.user != "Administrator" and not (user_roles & allowed_roles):
+            frappe.throw(
+                _("Only the Accountant or Booking Manager can submit an Asset Return."),
+                frappe.PermissionError,
+            )
+
     def on_submit(self):
         self.release_assets()
         self.close_booking()

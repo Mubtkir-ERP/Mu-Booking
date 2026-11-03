@@ -1,9 +1,10 @@
 # Copyright (c) 2026, Mu Booking and contributors
 # For license information, please see license.txt
 
-# import frappe
+from mu_booking.mu_booking.report.installation_and_delivery_report.installation_and_delivery_report import (
+	execute as run_installation_and_delivery_report,
+)
 
 
 def execute(filters=None):
-	columns, data = [], []
-	return columns, data
+	return run_installation_and_delivery_report(filters)

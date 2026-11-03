@@ -2,11 +2,12 @@
 # For license information, please see license.txt
 
 import calendar
+import json
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_days, add_months, cint, cstr, flt, getdate, today
+from frappe.utils import add_days, add_months, cint, cstr, flt, get_fullname, getdate, now_datetime, today
 
 # Booking lifecycle statuses
 STATUS_DRAFT = "Draft"
@@ -18,6 +19,7 @@ STATUS_CLOSED = "Closed"
 STATUS_CANCELLED = "Cancelled"
 
 ROLE_ADMIN = "System Manager"
+ROLE_MANAGER = "Party Booking Manager"
 ROLE_OFFICER = "Party Booking Officer"
 ROLE_INSTALLER = "Party Installation Manager"
 ROLE_ACCOUNTANT = "Party Accountant"
@@ -40,26 +42,27 @@ BOOKING_ACTIONS = {
         "label": "Schedule Delivery/Installation",
         "from": STATUS_CONFIRMED,
         "to": STATUS_SCHEDULED,
-        "roles": [ROLE_INSTALLER, ROLE_OFFICER],
+        "roles": [ROLE_INSTALLER, ROLE_OFFICER, ROLE_MANAGER],
         "requires_installation_manager": True,
     },
     "execute": {
         "label": "Mark as Executed",
         "from": STATUS_SCHEDULED,
         "to": STATUS_EXECUTED,
-        "roles": [ROLE_INSTALLER],
+        "roles": [ROLE_INSTALLER, ROLE_MANAGER],
     },
     "await_return": {
         "label": "Wait for Return",
         "from": STATUS_EXECUTED,
         "to": STATUS_PENDING_RETURN,
-        "roles": [ROLE_INSTALLER],
+        "roles": [ROLE_INSTALLER, ROLE_MANAGER],
     },
 }
-CONFIRM_ROLES = [ROLE_OFFICER]
-CANCEL_ROLES = [ROLE_OFFICER]
+CONFIRM_ROLES = [ROLE_OFFICER, ROLE_MANAGER]
+CANCEL_ROLES = [ROLE_OFFICER, ROLE_MANAGER]
+INSTALL_ROLES = [ROLE_INSTALLER, ROLE_MANAGER]
 CANCELLABLE_STATUSES = (STATUS_CONFIRMED, STATUS_SCHEDULED)
-RETURN_ROLES = [ROLE_ACCOUNTANT]
+RETURN_ROLES = [ROLE_ACCOUNTANT, ROLE_MANAGER]
 
 
 def user_has_role(roles):
@@ -121,7 +124,12 @@ class PartyBooking(Document):
     def validate(self):
         if self.docstatus == 0:
             self.status = STATUS_DRAFT
+            if not self.pickup_status:
+                self.pickup_status = "Not Picked Up"
+            if not self.warehouse_return_status:
+                self.warehouse_return_status = "Not Returned"
         self.set_weekday_fields()
+        self.sync_installation_manager_details()
         self.validate_party_date()
         self.validate_recurring()
         self.generate_recurring_sessions()
@@ -132,12 +140,29 @@ class PartyBooking(Document):
     def before_update_after_submit(self):
         """Allow modifying party_date / party_time on submitted bookings while re-validating conflicts."""
         self.set_weekday_fields()
+        self.sync_installation_manager_details()
         self.validate_recurring()
         if self.booking_type == "Recurring" and self.recurring_pattern != "Manual":
             self.generate_recurring_sessions()
             self.set_weekday_fields()
         self.sync_asset_quantities_and_values()
         self.check_asset_conflict()
+
+    def sync_installation_manager_details(self):
+        """Fetch employee_name and cell_number for the assigned Installation Manager."""
+        if self.installation_manager:
+            emp = frappe.db.get_value(
+                "Employee",
+                self.installation_manager,
+                ["employee_name", "cell_number"],
+                as_dict=True,
+            )
+            if emp:
+                self.installation_manager_name = emp.employee_name
+                self.installation_manager_mobile = emp.cell_number
+        else:
+            self.installation_manager_name = ""
+            self.installation_manager_mobile = ""
 
     def set_weekday_fields(self):
         """Populate party_day and session_day automatically from dates."""
@@ -411,6 +436,21 @@ class PartyBooking(Document):
 
     def on_submit(self):
         self.update_asset_status("Booked")
+        send_booking_notification(
+            self,
+            roles=[ROLE_INSTALLER],
+            subject=_("New Confirmed Order Ready for Installation: {0} ({1})").format(
+                self.name, self.customer_name or self.customer
+            ),
+            message=_(
+                "Order {0} for customer {1} on {2} ({3}) has been confirmed and is ready for scheduling and asset pickup."
+            ).format(
+                self.name,
+                self.customer_name or self.customer,
+                cstr(self.party_date),
+                cstr(self.party_location or self.installation_address or ""),
+            ),
+        )
 
     def before_cancel(self):
         if not user_has_role(CANCEL_ROLES):
@@ -425,20 +465,47 @@ class PartyBooking(Document):
 
     def set_status(self, status, **extra_values):
         """Persist a new lifecycle status on a submitted booking and log it in the timeline."""
+        if "installation_manager" in extra_values and extra_values["installation_manager"]:
+            emp = frappe.db.get_value(
+                "Employee",
+                extra_values["installation_manager"],
+                ["employee_name", "cell_number"],
+                as_dict=True,
+            )
+            if emp:
+                extra_values["installation_manager_name"] = emp.employee_name
+                extra_values["installation_manager_mobile"] = emp.cell_number
         self.db_set({"status": status, **extra_values}, notify=True)
         self.add_comment("Info", _("Status changed to {0}").format(_(status)))
 
     def update_asset_status(self, status):
         """Set all booking assets to the given status."""
+        holder = f"{self.customer_name or self.customer} ({self.name})" if status in ("Booked", "Delivered") else ""
         for d in self.assets:
             if d.asset_name:
-                frappe.db.set_value("Asset", d.asset_name, "party_booking_status", status)
+                frappe.db.set_value(
+                    "Asset",
+                    d.asset_name,
+                    {
+                        "party_booking_status": "Booked" if status == "Delivered" else status,
+                        "asset_booking_status": status,
+                        "current_booking_holder": holder,
+                    },
+                )
                 d.db_set("asset_booking_status", status)
 
         if self.booking_type == "Recurring":
             for s in self.sessions:
                 if getattr(s, "alternative_asset", None):
-                    frappe.db.set_value("Asset", s.alternative_asset, "party_booking_status", status)
+                    frappe.db.set_value(
+                        "Asset",
+                        s.alternative_asset,
+                        {
+                            "party_booking_status": "Booked" if status == "Delivered" else status,
+                            "asset_booking_status": status,
+                            "current_booking_holder": holder,
+                        },
+                    )
 
     def update_asset_status_on_cancel(self):
         """On cancellation, revert only assets that are still 'Booked' (not Damaged) and have no other active bookings."""
@@ -497,9 +564,15 @@ def get_booked_qty_and_holders(asset_name, target_date, exclude=None):
           AND pb.status NOT IN (%(closed)s, %(cancelled)s)
           AND pb.name != %(name)s
           AND pba.asset_name = %(asset)s
+          AND IFNULL(pba.asset_booking_status, 'Booked') != 'Returned'
           AND (
               (IFNULL(pb.booking_type, 'One-time') != 'Recurring' AND pb.party_date = %(target_date)s)
-              OR (pb.status IN (%(executed)s, %(pending_return)s) AND pb.party_date < %(today)s AND %(target_date)s <= %(today)s)
+              OR (
+                  pb.status IN (%(executed)s, %(pending_return)s)
+                  AND IFNULL(pb.warehouse_return_status, 'Not Returned') != 'Returned to Warehouse'
+                  AND pb.party_date < %(today)s
+                  AND %(target_date)s <= %(today)s
+              )
           )
         """,
         params,
@@ -716,6 +789,23 @@ def get_allowed_actions(name):
     has_open_return = frappe.db.exists(
         "Party Asset Return", {"party_booking": name, "docstatus": ["<", 2]}
     )
+    can_pickup = (
+        doc.docstatus == 1
+        and doc.status in (STATUS_CONFIRMED, STATUS_SCHEDULED, STATUS_EXECUTED)
+        and doc.pickup_status != "Picked Up"
+        and user_has_role(INSTALL_ROLES + CONFIRM_ROLES)
+    )
+    can_warehouse_return = (
+        doc.docstatus == 1
+        and doc.status in (STATUS_SCHEDULED, STATUS_EXECUTED, STATUS_PENDING_RETURN)
+        and doc.warehouse_return_status != "Returned to Warehouse"
+        and user_has_role(INSTALL_ROLES)
+    )
+    can_assign_installer = (
+        doc.docstatus == 1
+        and doc.status in (STATUS_CONFIRMED, STATUS_SCHEDULED, STATUS_EXECUTED)
+        and user_has_role(CONFIRM_ROLES + INSTALL_ROLES)
+    )
     return {
         "actions": actions,
         "can_confirm": doc.docstatus == 0 and user_has_role(CONFIRM_ROLES),
@@ -726,6 +816,10 @@ def get_allowed_actions(name):
         and doc.status == STATUS_PENDING_RETURN
         and user_has_role(RETURN_ROLES)
         and not has_open_return,
+        "can_record_pickup": can_pickup,
+        "can_confirm_warehouse_return": can_warehouse_return,
+        "can_assign_installer": can_assign_installer,
+        "can_view_return_links": user_has_role(RETURN_ROLES),
     }
 
 
@@ -753,4 +847,312 @@ def apply_action(name, action, installation_manager=None):
         extra_values["installation_manager"] = installation_manager
 
     doc.set_status(cfg["to"], **extra_values)
+
+    if action == "schedule" and installation_manager:
+        emp = frappe.db.get_value(
+            "Employee", installation_manager, ["employee_name", "cell_number"], as_dict=True
+        )
+        emp_label = emp.employee_name if emp else installation_manager
+        send_booking_notification(
+            doc,
+            roles=[ROLE_INSTALLER],
+            employee_id=installation_manager,
+            subject=_("Order {0} Assigned to {1} ({2})").format(
+                doc.name, emp_label, cstr(doc.party_date)
+            ),
+            message=_(
+                "Order {0} for customer {1} on {2} at {3} has been scheduled and assigned to {4}."
+            ).format(
+                doc.name,
+                doc.customer_name or doc.customer,
+                cstr(doc.party_date),
+                cstr(doc.party_location or doc.installation_address or ""),
+                emp_label,
+            ),
+            assign_todo=True,
+        )
+
     return doc.status
+
+
+@frappe.whitelist()
+def get_employee_details(employee):
+    """Return employee_name and cell_number for mobile assignment dialog."""
+    if not employee:
+        return {}
+    return (
+        frappe.db.get_value(
+            "Employee", employee, ["name", "employee_name", "cell_number", "user_id"], as_dict=True
+        )
+        or {}
+    )
+
+
+@frappe.whitelist()
+def assign_installation_manager(name, installation_manager):
+    """Assign or update the Installation Manager (mobile-friendly quick action)."""
+    if not installation_manager:
+        frappe.throw(_("Please select the Installation Manager."))
+
+    doc = frappe.get_doc("Party Booking", name)
+    doc.check_permission("write")
+
+    if not user_has_role(CONFIRM_ROLES + INSTALL_ROLES):
+        frappe.throw(_("You are not allowed to perform this action."), frappe.PermissionError)
+
+    emp = frappe.db.get_value(
+        "Employee", installation_manager, ["employee_name", "cell_number"], as_dict=True
+    )
+    emp_name = (emp.employee_name if emp else "") or installation_manager
+    emp_mobile = (emp.cell_number if emp else "") or ""
+
+    updates = {
+        "installation_manager": installation_manager,
+        "installation_manager_name": emp_name,
+        "installation_manager_mobile": emp_mobile,
+    }
+    if doc.docstatus == 1 and doc.status == STATUS_CONFIRMED:
+        updates["status"] = STATUS_SCHEDULED
+
+    doc.db_set(updates, notify=True)
+    doc.add_comment(
+        "Info",
+        _("Installation Manager assigned: {0} ({1})").format(
+            emp_name, emp_mobile or "-"
+        ),
+    )
+
+    send_booking_notification(
+        doc,
+        roles=[ROLE_INSTALLER],
+        employee_id=installation_manager,
+        subject=_("Order {0} Assigned to {1} ({2})").format(
+            doc.name, emp_name, cstr(doc.party_date)
+        ),
+        message=_(
+            "Order {0} for customer {1} on {2} at {3} has been assigned to {4}."
+        ).format(
+            doc.name,
+            doc.customer_name or doc.customer,
+            cstr(doc.party_date),
+            cstr(doc.party_location or doc.installation_address or ""),
+            emp_name,
+        ),
+        assign_todo=True,
+    )
+    return {
+        "status": updates.get("status", doc.status),
+        "installation_manager": installation_manager,
+        "installation_manager_name": emp_name,
+        "installation_manager_mobile": emp_mobile,
+    }
+
+
+@frappe.whitelist()
+def record_asset_pickup(name):
+    """Record employee arrival time and mark booking assets as Picked Up / Delivered (Points 2, 3, 4)."""
+    doc = frappe.get_doc("Party Booking", name)
+    doc.check_permission("write")
+
+    if not user_has_role(INSTALL_ROLES + CONFIRM_ROLES):
+        frappe.throw(_("You are not allowed to perform this action."), frappe.PermissionError)
+
+    if doc.docstatus != 1 or doc.status not in (STATUS_CONFIRMED, STATUS_SCHEDULED, STATUS_EXECUTED):
+        frappe.throw(_("Assets can only be picked up for confirmed or scheduled bookings."))
+
+    arrival_ts = now_datetime()
+    employee_display = resolve_current_employee_display(doc.installation_manager)
+
+    updates = {
+        "pickup_status": "Picked Up",
+        "pickup_arrival_time": arrival_ts,
+        "picked_up_by": employee_display,
+    }
+    doc.db_set(updates, notify=True)
+    doc.update_asset_status("Delivered")
+    doc.add_comment(
+        "Info",
+        _("Employee arrived and picked up assets at {0} ({1})").format(
+            cstr(arrival_ts), employee_display
+        ),
+    )
+    return updates
+
+
+@frappe.whitelist()
+def confirm_warehouse_return(name, damaged_assets=None, notes=None):
+    """Confirm physical return of booking assets to the warehouse by Installation Team (Point 17)."""
+    doc = frappe.get_doc("Party Booking", name)
+    doc.check_permission("write")
+
+    if not user_has_role(INSTALL_ROLES):
+        frappe.throw(_("You are not allowed to perform this action."), frappe.PermissionError)
+
+    if doc.docstatus != 1 or doc.status not in (STATUS_SCHEDULED, STATUS_EXECUTED, STATUS_PENDING_RETURN):
+        frappe.throw(_("This action is not allowed while the booking is in status {0}.").format(_(doc.status)))
+
+    if isinstance(damaged_assets, str):
+        try:
+            damaged_assets = json.loads(damaged_assets)
+        except Exception:
+            damaged_assets = [a.strip() for a in damaged_assets.split(",") if a.strip()]
+    damaged_set = set(damaged_assets or [])
+
+    # Release or mark damaged each asset in the booking
+    for d in doc.assets or []:
+        if not d.asset_name:
+            continue
+        if d.asset_name in damaged_set:
+            d.db_set("asset_booking_status", "Damaged")
+            frappe.db.set_value(
+                "Asset",
+                d.asset_name,
+                {
+                    "party_booking_status": "Damaged",
+                    "asset_booking_status": "Damaged",
+                    "current_booking_holder": "",
+                },
+            )
+        else:
+            d.db_set("asset_booking_status", "Returned")
+            other_active = get_active_bookings_holding([d.asset_name], exclude=doc.name, target_date=today())
+            if not other_active.get(d.asset_name):
+                frappe.db.set_value(
+                    "Asset",
+                    d.asset_name,
+                    {
+                        "party_booking_status": "Available",
+                        "asset_booking_status": "Available",
+                        "current_booking_holder": "",
+                    },
+                )
+
+    if doc.booking_type == "Recurring":
+        for s in doc.sessions or []:
+            alt_asset = getattr(s, "alternative_asset", None)
+            if alt_asset:
+                new_state = "Damaged" if alt_asset in damaged_set else "Available"
+                frappe.db.set_value(
+                    "Asset",
+                    alt_asset,
+                    {
+                        "party_booking_status": new_state,
+                        "asset_booking_status": new_state,
+                        "current_booking_holder": "",
+                    },
+                )
+
+    return_ts = now_datetime()
+    employee_display = resolve_current_employee_display(doc.installation_manager)
+
+    # Determine next booking status automatically:
+    # If there is no pending security deposit to refund, close the booking immediately;
+    # otherwise set to Pending Return and notify the accountant.
+    has_pending_deposit = flt(doc.security_deposit) > 0 and doc.deposit_status == "Pending"
+    next_status = STATUS_PENDING_RETURN if has_pending_deposit else STATUS_CLOSED
+
+    updates = {
+        "warehouse_return_status": "Returned to Warehouse",
+        "warehouse_return_time": return_ts,
+        "returned_to_warehouse_by": employee_display,
+        "status": next_status,
+    }
+    doc.db_set(updates, notify=True)
+
+    comment_msg = _("Assets returned to warehouse at {0} by {1}. Status updated to {2}.").format(
+        cstr(return_ts), employee_display, _(next_status)
+    )
+    if notes:
+        comment_msg += f" — {frappe.utils.escape_html(cstr(notes))}"
+    doc.add_comment("Info", comment_msg)
+
+    if has_pending_deposit:
+        send_booking_notification(
+            doc,
+            roles=[ROLE_ACCOUNTANT],
+            subject=_("Assets Returned to Warehouse for Order {0} - Pending Deposit Refund").format(doc.name),
+            message=_(
+                "Assets for Order {0} ({1}) have been returned to the warehouse by {2}. Please process the security deposit refund."
+            ).format(doc.name, doc.customer_name or doc.customer, employee_display),
+        )
+
+    return updates
+
+
+def resolve_current_employee_display(fallback_employee=None):
+    """Return human-readable Employee name (and mobile) for the current session user or assigned employee."""
+    emp = frappe.db.get_value(
+        "Employee", {"user_id": frappe.session.user}, ["name", "employee_name", "cell_number"], as_dict=True
+    )
+    if not emp and fallback_employee:
+        emp = frappe.db.get_value(
+            "Employee", fallback_employee, ["name", "employee_name", "cell_number"], as_dict=True
+        )
+    if emp:
+        if emp.cell_number:
+            return f"{emp.employee_name} ({emp.cell_number})"
+        return emp.employee_name
+    return get_fullname(frappe.session.user) or frappe.session.user
+
+
+def send_booking_notification(doc, roles=None, employee_id=None, subject="", message="", assign_todo=False):
+    """Send internal Frappe Notification Log alerts to users by role and/or Employee.user_id."""
+    try:
+        recipients = set()
+        if roles:
+            role_users = frappe.db.sql(
+                """
+                SELECT DISTINCT hr.parent AS user
+                FROM `tabHas Role` hr
+                JOIN `tabUser` u ON u.name = hr.parent
+                WHERE hr.role IN %(roles)s
+                  AND hr.parenttype = 'User'
+                  AND u.enabled = 1
+                  AND u.name NOT IN ('Guest')
+                """,
+                {"roles": tuple(roles)},
+                as_dict=True,
+            )
+            for r in role_users:
+                recipients.add(r.user)
+
+        emp_user = None
+        if employee_id:
+            emp_user = frappe.db.get_value("Employee", employee_id, "user_id")
+            if emp_user and frappe.db.get_value("User", emp_user, "enabled"):
+                recipients.add(emp_user)
+
+        for user in recipients:
+            notif = frappe.get_doc({
+                "doctype": "Notification Log",
+                "for_user": user,
+                "from_user": frappe.session.user,
+                "type": "Alert",
+                "document_type": "Party Booking",
+                "document_name": doc.name,
+                "subject": subject,
+                "email_content": message,
+            })
+            notif.insert(ignore_permissions=True)
+
+        if assign_todo and emp_user:
+            if not frappe.db.exists(
+                "ToDo",
+                {
+                    "reference_type": "Party Booking",
+                    "reference_name": doc.name,
+                    "allocated_to": emp_user,
+                    "status": "Open",
+                },
+            ):
+                frappe.get_doc({
+                    "doctype": "ToDo",
+                    "allocated_to": emp_user,
+                    "reference_type": "Party Booking",
+                    "reference_name": doc.name,
+                    "description": subject or message,
+                    "date": doc.party_date or today(),
+                    "status": "Open",
+                }).insert(ignore_permissions=True)
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Mu Booking Internal Notification Error")

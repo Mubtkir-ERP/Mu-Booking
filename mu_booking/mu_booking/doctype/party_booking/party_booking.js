@@ -34,9 +34,27 @@ frappe.ui.form.on("Party Booking", {
 		if (frm.meta) {
 			frm.meta.make_attachments_public = 1;
 		}
+		render_pickup_and_employee_banner(frm);
 		render_action_buttons(frm);
 		render_asset_gallery(frm);
+		render_employee_guide(frm);
 		refresh_all_assets_availability(frm);
+	},
+
+	installation_manager(frm) {
+		if (frm.doc.installation_manager) {
+			frappe.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.get_employee_details", {
+				employee: frm.doc.installation_manager,
+			}).then((emp) => {
+				if (emp) {
+					frm.set_value("installation_manager_name", emp.employee_name || "");
+					frm.set_value("installation_manager_mobile", emp.cell_number || "");
+				}
+			});
+		} else {
+			frm.set_value("installation_manager_name", "");
+			frm.set_value("installation_manager_mobile", "");
+		}
 	},
 
 	open_map(frm) {
@@ -254,6 +272,49 @@ function calculate_daily_end_date(frm) {
 }
 
 // ---------------------------------------------------------------------------
+// Employee, Pickup & Warehouse Return Banner (Points 2, 3, 4, 15, 17)
+// ---------------------------------------------------------------------------
+
+function render_pickup_and_employee_banner(frm) {
+	if (frm.is_new()) {
+		frm.dashboard.set_headline_alert("");
+		return;
+	}
+
+	const picked = frm.doc.pickup_status === "Picked Up";
+	const pickup_badge = picked
+		? `<span class="indicator-pill green">${__("Picked Up")}</span>`
+		: `<span class="indicator-pill orange">${__("Not Picked Up")}</span>`;
+
+	const arrival_info = frm.doc.pickup_arrival_time
+		? `<span class="text-muted small" style="margin-inline-start:6px;">(${frappe.datetime.str_to_user(frm.doc.pickup_arrival_time)}${frm.doc.picked_up_by ? " - " + frappe.utils.escape_html(frm.doc.picked_up_by) : ""})</span>`
+		: "";
+
+	const emp_name = frappe.utils.escape_html(
+		frm.doc.installation_manager_name || frm.doc.installation_manager || __("Not Assigned")
+	);
+	const emp_mobile = (frm.doc.installation_manager_mobile || "").trim();
+	const emp_mobile_html = emp_mobile
+		? ` <a href="tel:${encodeURIComponent(emp_mobile)}" style="font-weight:600;text-decoration:underline;">(${frappe.utils.escape_html(emp_mobile)})</a>`
+		: "";
+
+	const wh_returned = frm.doc.warehouse_return_status === "Returned to Warehouse";
+	const wh_badge = wh_returned
+		? `<span class="indicator-pill green">${__("Returned to Warehouse")}</span>`
+		: `<span class="indicator-pill gray">${__("Not Returned")}</span>`;
+
+	const html = `
+		<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:4px 0;">
+			<div><b>${__("Installation Manager")}:</b> ${emp_name}${emp_mobile_html}</div>
+			<div><b>${__("Asset Pickup Status")}:</b> ${pickup_badge}${arrival_info}</div>
+			<div><b>${__("Warehouse Return Status")}:</b> ${wh_badge}</div>
+		</div>
+	`;
+	frm.dashboard.clear_headline();
+	frm.dashboard.set_headline_alert(html);
+}
+
+// ---------------------------------------------------------------------------
 // Lifecycle buttons (replaces the Workflow "Actions" dropdown)
 // ---------------------------------------------------------------------------
 
@@ -266,6 +327,17 @@ function render_action_buttons(frm) {
 	frappe.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.get_allowed_actions", {
 		name: frm.doc.name,
 	}).then((r) => {
+		if (!r) {
+			return;
+		}
+		// Point 16: Hide Party Asset Return link/icon in dashboard if user lacks financial return permission
+		if (!r.can_view_return_links && frm.dashboard && frm.dashboard.transactions_area) {
+			frm.dashboard.transactions_area
+				.find('[data-doctype="Party Asset Return"]')
+				.closest(".document-link")
+				.hide();
+		}
+
 		if (frm.is_dirty()) {
 			return; // the user started editing meanwhile - keep the Save button
 		}
@@ -282,6 +354,77 @@ function render_action_buttons(frm) {
 			add_styled_button(frm, action.label, () => run_action(frm, action), "btn-primary");
 		});
 
+		// Point 15: Quick mobile button to assign/change Installation Manager
+		if (r.can_assign_installer) {
+			add_styled_button(
+				frm,
+				__("Assign Installation Manager"),
+				() => {
+					prompt_installation_manager(
+						frm,
+						(installation_manager) => {
+							frappe
+								.xcall(
+									"mu_booking.mu_booking.doctype.party_booking.party_booking.assign_installation_manager",
+									{
+										name: frm.doc.name,
+										installation_manager,
+									}
+								)
+								.then(() => {
+									frappe.show_alert({
+										message: __("Installation Manager assigned and notified."),
+										indicator: "green",
+									});
+									frm.reload_doc();
+								});
+						},
+						__("Assign & Notify")
+					);
+				},
+				"btn-info"
+			);
+		}
+
+		// Points 2, 3, 4: Single button to record employee arrival time and mark assets Picked Up
+		if (r.can_record_pickup) {
+			add_styled_button(
+				frm,
+				__("Record Arrival & Pickup Assets"),
+				() => {
+					frappe.confirm(
+						__("Confirm employee arrival and pickup of booking assets now?"),
+						() => {
+							frappe
+								.xcall(
+									"mu_booking.mu_booking.doctype.party_booking.party_booking.record_asset_pickup",
+									{ name: frm.doc.name }
+								)
+								.then(() => {
+									frappe.show_alert({
+										message: __("Arrival time recorded and assets marked as Picked Up."),
+										indicator: "green",
+									});
+									frm.reload_doc();
+								});
+						}
+					);
+				},
+				"btn-success"
+			);
+		}
+
+		// Point 17: Button for Installation Team to confirm asset return to warehouse
+		if (r.can_confirm_warehouse_return) {
+			add_styled_button(
+				frm,
+				__("Confirm Asset Return to Warehouse"),
+				() => prompt_warehouse_return(frm),
+				"btn-warning"
+			);
+		}
+
+		// Point 16: Only Accountant / Manager / Admin sees Create Asset Return
 		if (r.can_create_return) {
 			add_styled_button(
 				frm,
@@ -323,7 +466,7 @@ function run_action(frm, action) {
 	}
 }
 
-function prompt_installation_manager(frm, callback) {
+function prompt_installation_manager(frm, callback, primary_label) {
 	const dialog = new frappe.ui.Dialog({
 		title: __("Select Installation Manager"),
 		fields: [
@@ -335,12 +478,103 @@ function prompt_installation_manager(frm, callback) {
 				reqd: 1,
 				default: frm.doc.installation_manager,
 				get_query: () => ({ filters: { status: "Active" } }),
+				change() {
+					const emp_id = dialog.get_value("installation_manager");
+					if (!emp_id) {
+						dialog.set_value("employee_name", "");
+						dialog.set_value("cell_number", "");
+						return;
+					}
+					frappe
+						.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.get_employee_details", {
+							employee: emp_id,
+						})
+						.then((emp) => {
+							if (emp) {
+								dialog.set_value("employee_name", emp.employee_name || "");
+								dialog.set_value("cell_number", emp.cell_number || "");
+							}
+						});
+				},
+			},
+			{
+				fieldname: "employee_name",
+				fieldtype: "Data",
+				label: __("Installation Manager Name"),
+				read_only: 1,
+				default: frm.doc.installation_manager_name || "",
+			},
+			{
+				fieldname: "cell_number",
+				fieldtype: "Data",
+				label: __("Installation Manager Mobile"),
+				read_only: 1,
+				default: frm.doc.installation_manager_mobile || "",
 			},
 		],
-		primary_action_label: __("Schedule"),
+		primary_action_label: primary_label || __("Schedule"),
 		primary_action(values) {
 			dialog.hide();
 			callback(values.installation_manager);
+		},
+	});
+	dialog.show();
+}
+
+function prompt_warehouse_return(frm) {
+	const asset_rows = (frm.doc.assets || []).filter((r) => r.asset_name);
+	const fields = [
+		{
+			fieldname: "info_html",
+			fieldtype: "HTML",
+			options: `<div class="text-muted small" style="margin-bottom:8px;">${__(
+				"Confirm that all booking assets have been returned to the warehouse. Check any asset below only if it was returned damaged."
+			)}</div>`,
+		},
+	];
+
+	asset_rows.forEach((row, idx) => {
+		const title = frappe.utils.escape_html(row.asset_title || row.asset_name);
+		const code = frappe.utils.escape_html(row.asset_name);
+		fields.push({
+			fieldname: `damaged_${idx}`,
+			fieldtype: "Check",
+			label: `${__("Damaged")}: ${title} (${code})`,
+			default: 0,
+		});
+	});
+
+	fields.push({
+		fieldname: "notes",
+		fieldtype: "Small Text",
+		label: __("Warehouse Return Notes"),
+	});
+
+	const dialog = new frappe.ui.Dialog({
+		title: __("Confirm Asset Return to Warehouse"),
+		fields,
+		primary_action_label: __("Confirm Return to Warehouse"),
+		primary_action(values) {
+			const damaged_assets = [];
+			asset_rows.forEach((row, idx) => {
+				if (values[`damaged_${idx}`]) {
+					damaged_assets.push(row.asset_name);
+				}
+			});
+			dialog.hide();
+			frappe
+				.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.confirm_warehouse_return", {
+					name: frm.doc.name,
+					damaged_assets,
+					notes: values.notes || "",
+				})
+				.then(() => {
+					frappe.show_alert({
+						message: __("Assets confirmed returned to warehouse and booking status updated."),
+						indicator: "green",
+					});
+					frm.reload_doc();
+				});
 		},
 	});
 	dialog.show();
@@ -407,4 +641,110 @@ function build_gallery_html(assets) {
 		.join("");
 
 	return `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">${cards}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Point 1: Bilingual Employee Usage Guide (ع / E) at bottom of the document
+// ---------------------------------------------------------------------------
+
+function render_employee_guide(frm) {
+	const field = frm.get_field("employee_guide_html");
+	if (!field || !field.$wrapper) {
+		return;
+	}
+	const wrapper = field.$wrapper;
+	if (wrapper.attr("data-guide-rendered") === "1") {
+		return;
+	}
+	wrapper.attr("data-guide-rendered", "1");
+
+	const default_mode = "both";
+	wrapper.html(`
+		<div class="mu-booking-guide" style="border:1px solid var(--border-color);border-radius:var(--border-radius-md);padding:16px;background:var(--card-bg);margin-top:6px;">
+			<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--border-color);padding-bottom:12px;margin-bottom:14px;">
+				<div style="font-weight:700;font-size:15px;">
+					📖 دليل استخدام النظام للموظفين | Employee Usage Guide (ع / E)
+				</div>
+				<div class="btn-group btn-group-sm" role="group">
+					<button type="button" class="btn btn-default mu-lang-btn active" data-lang="both">ع + E</button>
+					<button type="button" class="btn btn-default mu-lang-btn" data-lang="ar">عربي (ع)</button>
+					<button type="button" class="btn btn-default mu-lang-btn" data-lang="en">English (E)</button>
+				</div>
+			</div>
+
+			<div class="mu-guide-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
+				<!-- Arabic Column -->
+				<div class="mu-guide-col mu-guide-ar" dir="rtl" style="text-align:right;background:var(--control-bg);padding:14px;border-radius:8px;">
+					<h5 style="margin-top:0;font-weight:700;color:var(--primary);">🇸🇦 أولاً: شرح الاستخدام باللغة العربية (ع)</h5>
+					<div style="margin-bottom:10px;">
+						<b>1. موظف المبيعات / مسؤول الحجوزات:</b>
+						<ul style="padding-right:18px;margin:4px 0 0 0;line-height:1.7;">
+							<li>اختر <b>العميل</b>، وأدخل <b>موقع الحفلة</b> و<b>عنوان التركيب</b> ورابط خرائط جوجل، وأرفق <b>صورة مرجعية</b> للأوردر عند الحاجة.</li>
+							<li>حدد <b>تاريخ الحفلة</b> (سيظهر اسم <b>اليوم</b> تلقائياً) و<b>وقت الحفلة</b>، ويمكن تعديل الموعد حتى بعد اعتماد الطلب.</li>
+							<li>في جدول <b>الأصول</b>: اختر باركود الأصل والكمية المطلوبة؛ يتحقق النظام تلقائياً من الكمية المتاحة في نفس التاريخ فقط دون حجب التواريخ الأخرى.</li>
+							<li>اضغط <b>تأكيد الحجز</b> لإشعار فريق التركيب تلقائياً داخل النظام، وتابع حالة الطلب وموقعه عبر <b>لوحة كانبان متابعة الطلبات</b>.</li>
+						</ul>
+					</div>
+					<div style="margin-bottom:10px;">
+						<b>2. مسؤول وفريق التركيب (عبر الجوال أو الكمبيوتر):</b>
+						<ul style="padding-right:18px;margin:4px 0 0 0;line-height:1.7;">
+							<li>لتكليف مسؤول التركيب من الجوال اضغط زر <b>تكليف مسؤول التركيب</b> أو <b>جدولة التوصيل والتركيب</b> ليصله إشعار فوري.</li>
+							<li>عند حضور الموظف للمستودع لاستلام الأصول، اضغط زر <b>تسجيل الوصول واستلام الأصول</b> لتسجيل وقت الوصول الفعلي وتحديث الحالة إلى <b>تم الاستلام</b>.</li>
+							<li>بعد إتمام التركيب اضغط <b>تحديد كمنفذ</b>، وعند إعادة الأصول للمستودع اضغط <b>تأكيد إرجاع الأصل إلى المستودع</b> لتصبح الأصول متاحة فوراً.</li>
+						</ul>
+					</div>
+					<div>
+						<b>3. المحاسب (إرجاع التأمين وإغلاق الطلب):</b>
+						<ul style="padding-right:18px;margin:4px 0 0 0;line-height:1.7;">
+							<li>عند وجود مبلغ تأمين، اضغط <b>إنشاء إرجاع أصل</b> لتسجيل رد التأمين أو خصم التلفيات ليتم إغلاق الأوردر آلياً.</li>
+						</ul>
+					</div>
+				</div>
+
+				<!-- English Column -->
+				<div class="mu-guide-col mu-guide-en" dir="ltr" style="text-align:left;background:var(--control-bg);padding:14px;border-radius:8px;">
+					<h5 style="margin-top:0;font-weight:700;color:var(--primary);">🇬🇧 Second: Employee Usage Guide in English (E)</h5>
+					<div style="margin-bottom:10px;">
+						<b>1. Sales / Booking Officer:</b>
+						<ul style="padding-left:18px;margin:4px 0 0 0;line-height:1.7;">
+							<li>Select the <b>Customer</b>, enter the <b>Party Location</b>, <b>Installation Address</b>, and Google Maps link, and attach an <b>Order Reference Image</b> if needed.</li>
+							<li>Set the <b>Party Date</b> (the <b>Day</b> name is filled automatically) and <b>Party Time</b>. Dates and times can be updated even after confirmation.</li>
+							<li>In the <b>Assets</b> table, select the <b>Asset Barcode</b> and requested quantity; the system checks available quantity for that specific date without blocking other dates.</li>
+							<li>Click <b>Confirm Booking</b> to automatically notify the installation team, and track order progress anytime via the <b>Order Tracking Kanban</b> board.</li>
+						</ul>
+					</div>
+					<div style="margin-bottom:10px;">
+						<b>2. Installation Manager & Team (Mobile / Desktop):</b>
+						<ul style="padding-left:18px;margin:4px 0 0 0;line-height:1.7;">
+							<li>Use <b>Assign Installation Manager</b> or <b>Schedule Delivery / Installation</b> from your phone to assign the responsible employee and send an instant alert.</li>
+							<li>When arriving at the warehouse to collect assets, click <b>Record Arrival & Pickup Assets</b> to log the exact arrival timestamp and mark status as <b>Picked Up</b>.</li>
+							<li>After onsite completion, click <b>Mark as Executed</b>. Once assets are brought back, click <b>Confirm Asset Return to Warehouse</b> to release assets immediately.</li>
+						</ul>
+					</div>
+					<div>
+						<b>3. Accountant (Deposit Refund & Closure):</b>
+						<ul style="padding-left:18px;margin:4px 0 0 0;line-height:1.7;">
+							<li>When a security deposit exists, click <b>Create Asset Return</b> to process the refund or damage deduction and automatically close the booking.</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	`);
+
+	wrapper.find(".mu-lang-btn").on("click", function () {
+		const lang = $(this).attr("data-lang") || default_mode;
+		wrapper.find(".mu-lang-btn").removeClass("active btn-primary").addClass("btn-default");
+		$(this).removeClass("btn-default").addClass("active btn-primary");
+		if (lang === "ar") {
+			wrapper.find(".mu-guide-ar").show();
+			wrapper.find(".mu-guide-en").hide();
+		} else if (lang === "en") {
+			wrapper.find(".mu-guide-ar").hide();
+			wrapper.find(".mu-guide-en").show();
+		} else {
+			wrapper.find(".mu-guide-ar").show();
+			wrapper.find(".mu-guide-en").show();
+		}
+	});
 }

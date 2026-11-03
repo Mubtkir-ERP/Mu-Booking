@@ -33,3 +33,4 @@
 	}
 	$(document).on("app_ready", patch_file_uploader);
 })();
+

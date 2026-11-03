@@ -116,8 +116,10 @@ def setup_property_setters():
             "Employee", None, "search_fields", "employee_name, employee_number, cell_number", "Data", for_doctype=True
         )
 
-        # 3. Asset: make attachments public by default (no Private lock)
+        # 3. Asset: make attachments public by default (no Private lock) and allow editing asset_quantity on submit
         make_property_setter("Asset", None, "make_attachments_public", "1", "Check", for_doctype=True)
+        make_property_setter("Asset", "asset_quantity", "allow_on_submit", "1", "Check")
+        make_property_setter("Asset", "asset_quantity", "in_list_view", "1", "Check")
 
         for dt in ("Customer", "Employee", "Asset"):
             frappe.clear_cache(doctype=dt)
@@ -137,7 +139,8 @@ def setup_kanban_board():
         "party_time",
         "party_location",
         "installation_address",
-        "installation_manager",
+        "installation_manager_name",
+        "pickup_status",
     ]
 
     try:
@@ -173,6 +176,7 @@ def setup_kanban_board():
 def sync_workspace_and_cache():
     """Mubtkir ERP Master Guidelines (Rule 5): Auto-sync workspace and clear Desk cache on migrate."""
     try:
+        frappe.db.sql("DELETE FROM `tabWorkspace` WHERE name LIKE 'Party Bookings-%'")
         frappe.reload_doc("mu_booking", "workspace", "party_bookings", force=True)
         frappe.cache.delete_key("bootinfo")
         frappe.clear_cache()

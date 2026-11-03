@@ -4,7 +4,7 @@ app_publisher = "Mubtkir"
 app_description = "Party & Event Asset Booking Management System - Mubtkir ERP (https://www.mubtkir.com)"
 app_email = "apps@mubtkir.com"
 app_license = "mit"
-app_version = "1.1.0"
+app_version = "1.2.0"
 
 # Includes in <head>
 # ------------------

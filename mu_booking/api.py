@@ -28,6 +28,8 @@ def create_bot_booking(
     if not isinstance(customer_name, str) or not customer_name.strip():
         return {"status": "error", "message": _("Customer name is required.")}
 
+    customer_name_clean = customer_name.strip()[:140]
+
     if not isinstance(customer_mobile, str) or not customer_mobile.strip():
         return {"status": "error", "message": _("Customer mobile is required.")}
 
@@ -39,7 +41,12 @@ def create_bot_booking(
     if not party_date or not isinstance(party_date, str):
         return {"status": "error", "message": _("Party date is required.")}
 
-    if getdate(party_date) < getdate(today()):
+    try:
+        parsed_party_date = getdate(party_date)
+    except Exception:
+        return {"status": "error", "message": _("Party date is required.")}
+
+    if parsed_party_date < getdate(today()):
         return {"status": "error", "message": _("Party date cannot be in the past.")}
 
     if booking_type not in ("One-time", "Recurring"):
@@ -47,6 +54,14 @@ def create_bot_booking(
 
     if service_type not in ("Delivery Only", "Delivery and Installation"):
         return {"status": "error", "message": _("Invalid service_type.")}
+
+    if location_link and isinstance(location_link, str):
+        location_link = location_link.strip()
+        if location_link and not re.match(r"^https?://", location_link, flags=re.IGNORECASE):
+            return {
+                "status": "error",
+                "message": _("Invalid map URL. Must start with http:// or https://"),
+            }
 
     # Deduplication — block duplicate bookings (same mobile + same date, not cancelled)
     existing = frappe.db.get_value(
@@ -59,11 +74,13 @@ def create_bot_booking(
         "name",
     )
     if existing:
-        return {
+        resp = {
             "status": "duplicate",
             "message": _("A booking already exists for this mobile number on the same date."),
-            "existing_booking_id": existing,
         }
+        if frappe.session.user != "Guest":
+            resp["existing_booking_id"] = existing
+        return resp
 
     try:
         # Find or create customer
@@ -71,7 +88,7 @@ def create_bot_booking(
         if not customer_id:
             new_customer = frappe.get_doc({
                 "doctype": "Customer",
-                "customer_name": customer_name.strip(),
+                "customer_name": customer_name_clean,
                 "customer_group": "Commercial",
                 "territory": "All Territories",
                 "customer_type": "Individual",
@@ -83,18 +100,18 @@ def create_bot_booking(
         booking = frappe.get_doc({
             "doctype": "Party Booking",
             "customer": customer_id,
-            "customer_name": customer_name.strip(),
+            "customer_name": customer_name_clean,
             "customer_mobile": customer_mobile.strip(),
-            "receiver_mobile": receiver_mobile,
+            "receiver_mobile": (receiver_mobile or "").strip()[:30] if isinstance(receiver_mobile, str) else None,
             "party_date": party_date,
             "party_time": party_time,
             "event_type": event_type,
             "service_type": service_type,
-            "party_location": party_location,
-            "installation_address": installation_address,
+            "party_location": (party_location or "").strip()[:140] if isinstance(party_location, str) else None,
+            "installation_address": (installation_address or "").strip()[:500] if isinstance(installation_address, str) else None,
             "location_link": location_link,
             "booking_type": booking_type,
-            "customer_notes": customer_notes,
+            "customer_notes": (customer_notes or "").strip()[:1000] if isinstance(customer_notes, str) else None,
         })
 
         booking.insert(ignore_permissions=True)
@@ -106,11 +123,11 @@ def create_bot_booking(
             "booking_id": booking.name,
         }
 
-    except Exception as e:
+    except Exception:
         frappe.log_error(title="Bot Booking API Error", message=frappe.get_traceback())
         return {
             "status": "error",
-            "message": f"Error: {str(e)}",
+            "message": _("An unexpected error occurred while creating the booking."),
         }
 
 

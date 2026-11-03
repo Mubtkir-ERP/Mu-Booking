@@ -183,3 +183,78 @@ Asset <b>{0}</b> is held by active Booking {1} and has not been returned yet,ا�
 The following assets are not available:,الأصول التالية غير متاحة:
 An asset becomes available only after its Asset Return document is submitted.,الأصل يصبح متاحاً فقط بعد اعتماد مستند إرجاع الأصول الخاص به.
 Asset Not Available,الأصل غير متاح
+Installation Manager Name,اسم مسؤول التركيب
+Installation Manager Mobile,جوال مسؤول التركيب
+Asset Pickup & Warehouse Return,استلام الأصول وإرجاع المستودع
+Asset Pickup Status,حالة استلام الأصول
+Not Picked Up,لم يتم الاستلام
+Picked Up,تم الاستلام
+Employee Arrival & Pickup Time,وقت وصول الموظف واستلام الأصول
+Picked Up By Employee,تم الاستلام بواسطة الموظف
+Warehouse Return Status,حالة الإرجاع للمستودع
+Not Returned,لم يتم الإرجاع
+Returned to Warehouse,تم الإرجاع للمستودع
+Warehouse Return Time,وقت الإرجاع للمستودع
+Returned By Employee,تم الإرجاع بواسطة الموظف
+Not Assigned,غير معين
+Assign Installation Manager,تكليف موظف التركيب
+Assign & Notify,تكليف وإرسال إشعار
+Installation Manager assigned and notified.,تم تكليف موظف التركيب وإرسال الإشعار بنجاح.
+Record Arrival & Pickup Assets,تسجيل الوصول واستلام الأصول
+Confirm employee arrival and pickup of booking assets now?,هل تريد تأكيد وصول الموظف واستلام أصول الحجز الآن؟
+Arrival time recorded and assets marked as Picked Up.,تم تسجيل وقت الوصول وتحديث حالة الأصول إلى تم الاستلام.
+Confirm Asset Return to Warehouse,تأكيد إرجاع الأصل إلى المستودع
+Confirm Return to Warehouse,تأكيد الإرجاع للمستودع
+Confirm that all booking assets have been returned to the warehouse. Check any asset below only if it was returned damaged.,أكد إرجاع جميع أصول الحجز إلى المستودع. ضع علامة صح أمام أي أصل بالأسفل فقط في حال إرجاعه تالفاً.
+Warehouse Return Notes,ملاحظات الإرجاع للمستودع
+Assets confirmed returned to warehouse and booking status updated.,تم تأكيد إرجاع الأصول إلى المستودع وتحديث حالة الحجز بنجاح.
+New Confirmed Order Ready for Installation: {0} ({1}),أوردر مؤكد جديد جاهز للتركيب: {0} ({1})
+Order {0} for customer {1} on {2} ({3}) has been confirmed and is ready for scheduling and asset pickup.,الأوردر {0} للعميل {1} بتاريخ {2} ({3}) تم تأكيده وهو جاهز للجدولة واستلام الأصول.
+Order {0} Assigned to {1} ({2}),تم تكليف {1} بالأوردر {0} ({2})
+Order {0} for customer {1} on {2} at {3} has been scheduled and assigned to {4}.,الأوردر {0} للعميل {1} بتاريخ {2} في {3} تمت جدولته وتكليف {4} به.
+Order {0} for customer {1} on {2} at {3} has been assigned to {4}.,الأوردر {0} للعميل {1} بتاريخ {2} في {3} تم تكليف {4} به.
+Installation Manager assigned: {0} ({1}),تم تكليف مسؤول التركيب: {0} ({1})
+Assets can only be picked up for confirmed or scheduled bookings.,لا يمكن تسجيل استلام الأصول إلا للحجوزات المؤكدة أو المجدولة.
+Employee arrived and picked up assets at {0} ({1}),حضر الموظف واستلم الأصول في {0} ({1})
+Assets returned to warehouse at {0} by {1}. Status updated to {2}.,تم إرجاع الأصول إلى المستودع في {0} بواسطة {1}. تم تحديث الحالة إلى {2}.
+Assets Returned to Warehouse for Order {0} - Pending Deposit Refund,تم إرجاع أصول الأوردر {0} للمستودع - بانتظار رد التأمين
+Assets for Order {0} ({1}) have been returned to the warehouse by {2}. Please process the security deposit refund.,تم إرجاع أصول الأوردر {0} ({1}) إلى المستودع بواسطة {2}. يرجى استكمال إجراءات تسوية مبلغ التأمين.
+Party Booking System,نظام حجوزات الحفلات
+Masters & Reports,البيانات الأساسية والتقارير
+Transactions,الحركات والمعاملات
+Settings & Masters,الإعدادات والبيانات الأساسية
+Reports,التقارير
+Event Name,اسم المناسبة
+Employee Usage Guide (ع / E),دليل استخدام الموظفين (ع / E)
+Employee Usage Guide,دليل استخدام الموظفين
+Amended From,معدل من
+Booking ID,رقم الحجز
+Location,الموقع
+Delivery Time,وقت التوصيل
+Duration,المدة
+Workers,العمال
+Vehicle,المركبة
+Installation Team,فريق التركيب
+Delivery From Date,من تاريخ التوصيل
+Delivery To Date,إلى تاريخ التوصيل
+From Date,من تاريخ
+To Date,إلى تاريخ
+State,الحالة
+Asset Title,اسم الأصل
+Item Code,كود الصنف
+Item Group,مجموعة الصنف
+Total Rentals,إجمالي مرات التأجير
+Total Days Booked,إجمالي الأيام المحجوزة
+Current Status,الحالة الحالية
+Return Document,مستند الإرجاع
+Return Date,تاريخ الإرجاع
+Damage/Loss Reason,سبب التلف أو الفقد
+Deducted Compensation,مبلغ التعويض المخصوم
+Deposit Amount,مبلغ التأمين
+Returned Amount,المبلغ المسترد
+Deducted Amount,المبلغ المخصوم
+Return Status,حالة الإرجاع
+A submitted Asset Return ({0}) already exists for Booking {1}. Cannot create a duplicate.,يوجد مستند إرجاع معتمد مسبقاً ({0}) للحجز {1}. لا يمكن إنشاء مستند مكرر.
+Refund Amount ({0}) cannot exceed the Original Deposit ({1}).,لا يمكن أن يتجاوز مبلغ الاسترجاع ({0}) مبلغ التأمين الأصلي ({1}).
+Only the Accountant or Booking Manager can submit an Asset Return.,فقط المحاسب أو مدير الحجوزات يمكنه اعتماد مستند إرجاع الأصول.
+An unexpected error occurred while creating the booking.,حدث خطأ غير متوقع أثناء إنشاء الحجز.
