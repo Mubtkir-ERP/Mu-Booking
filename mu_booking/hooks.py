@@ -14,6 +14,7 @@ app_include_js = "/assets/mu_booking/js/mu_booking.js"
 
 # Installation / Migration
 # ------------------------
+before_install = "mu_booking.patches.v1_1.setup_kanban_and_properties.ensure_roles"
 after_install = "mu_booking.patches.v1_1.setup_kanban_and_properties.execute"
 after_migrate = ["mu_booking.patches.v1_1.setup_kanban_and_properties.execute"]
 

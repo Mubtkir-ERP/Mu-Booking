@@ -25,10 +25,22 @@ REQUIRED_ROLES = [
 def execute():
     """Ensure roles, custom fields, Property Setters, Kanban Board, and Workspace sync on install/migrate."""
     ensure_roles()
+    ensure_default_event_types()
     ensure_asset_custom_fields()
     setup_property_setters()
     setup_kanban_board()
     sync_workspace_and_cache()
+
+
+def ensure_default_event_types():
+    if not frappe.db.exists("DocType", "Event Type"):
+        return
+    for event_name in ["زفاف", "خطوبة", "عيد ميلاد", "تخرج", "حفلة خاصة"]:
+        if not frappe.db.exists("Event Type", event_name):
+            try:
+                frappe.get_doc({"doctype": "Event Type", "event_name": event_name}).insert(ignore_permissions=True)
+            except Exception:
+                pass
 
 
 def ensure_roles():
