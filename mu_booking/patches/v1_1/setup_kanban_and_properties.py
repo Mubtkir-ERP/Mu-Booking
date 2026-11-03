@@ -1,4 +1,6 @@
+import csv
 import json
+import os
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_field
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
@@ -174,11 +176,55 @@ def setup_kanban_board():
 
 
 def sync_workspace_and_cache():
-    """Mubtkir ERP Master Guidelines (Rule 5): Auto-sync workspace and clear Desk cache on migrate."""
+    """Mubtkir ERP Master Guidelines (Rule 5): Auto-sync workspace, translations, and clear Desk cache on migrate."""
     try:
+        sync_arabic_translations()
         frappe.db.sql("DELETE FROM `tabWorkspace` WHERE name LIKE 'Party Bookings-%'")
         frappe.reload_doc("mu_booking", "workspace", "party_bookings", force=True)
+        try:
+            from frappe.translate import clear_cache as clear_translation_cache
+            clear_translation_cache()
+        except Exception:
+            pass
         frappe.cache.delete_key("bootinfo")
         frappe.clear_cache()
     except Exception:
         pass
+
+
+def sync_arabic_translations():
+    """Ensure all Arabic translations in mu_booking/translations/ar.csv are registered in tabTranslation."""
+    if not frappe.db.exists("DocType", "Translation"):
+        return
+    csv_path = os.path.join(frappe.get_app_path("mu_booking"), "translations", "ar.csv")
+    if not os.path.exists(csv_path):
+        return
+    existing = {
+        r.source_text: (r.name, r.translated_text)
+        for r in frappe.get_all(
+            "Translation",
+            filters={"language": "ar"},
+            fields=["name", "source_text", "translated_text"],
+        )
+    }
+    with open(csv_path, encoding="utf-8") as f:
+        for row in csv.reader(f):
+            if len(row) < 2:
+                continue
+            src = row[0].strip()
+            trn = row[1].strip()
+            if not src or not trn:
+                continue
+            if src in existing:
+                doc_name, old_trn = existing[src]
+                if old_trn != trn:
+                    frappe.db.set_value("Translation", doc_name, "translated_text", trn, update_modified=False)
+            else:
+                doc = frappe.get_doc({
+                    "doctype": "Translation",
+                    "language": "ar",
+                    "source_text": src,
+                    "translated_text": trn,
+                })
+                doc.insert(ignore_permissions=True)
+                existing[src] = (doc.name, trn)

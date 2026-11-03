@@ -93,6 +93,32 @@ frappe.ui.form.on("Party Booking Asset", {
 		const row = locals[cdt][cdn];
 		update_and_check_asset_row(frm, row, true);
 	},
+	total_asset_qty(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row.asset_name || !row.total_asset_qty || Number(row.total_asset_qty) < 1) {
+			return;
+		}
+		if (row._syncing_total_qty) {
+			return;
+		}
+		frappe
+			.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.update_asset_quantity", {
+				asset: row.asset_name,
+				asset_quantity: row.total_asset_qty,
+				party_date: frm.doc.party_date,
+				exclude_booking: frm.doc.name,
+			})
+			.then((info) => {
+				if (info && info.asset) {
+					row._syncing_total_qty = true;
+					frappe.model.set_value(cdt, cdn, "available_qty", info.available_qty ?? 1).finally(() => {
+						row._syncing_total_qty = false;
+					});
+					frm._assets_gallery_key = null;
+					render_asset_gallery(frm);
+				}
+			});
+	},
 	assets_add(frm) {
 		guard_scroll_position();
 	},
@@ -161,7 +187,10 @@ function update_and_check_asset_row(frm, row, show_messages) {
 		if (!info || !info.asset) {
 			return;
 		}
-		frappe.model.set_value(row.doctype, row.name, "total_asset_qty", info.total_asset_qty || 1);
+		row._syncing_total_qty = true;
+		frappe.model.set_value(row.doctype, row.name, "total_asset_qty", info.total_asset_qty || 1).finally(() => {
+			row._syncing_total_qty = false;
+		});
 		frappe.model.set_value(row.doctype, row.name, "available_qty", info.available_qty ?? 1);
 		if (!row.asset_value && info.asset_value) {
 			frappe.model.set_value(row.doctype, row.name, "asset_value", info.asset_value);

@@ -57,11 +57,11 @@
    "columns": 1,
    "default": "1",
    "fetch_from": "asset_name.asset_quantity",
+   "fetch_if_empty": 1,
    "fieldname": "total_asset_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Total Asset Qty",
-   "read_only": 1
+   "label": "Total Asset Qty"
   },
   {
    "columns": 1,

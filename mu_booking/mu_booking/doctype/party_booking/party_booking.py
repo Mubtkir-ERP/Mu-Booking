@@ -190,7 +190,13 @@ class PartyBooking(Document):
                     d.asset_title = asset_info.asset_name
                 if not flt(d.asset_value):
                     d.asset_value = flt(asset_info.gross_purchase_amount)
-                total_qty = max(cint(asset_info.asset_quantity), 1)
+                db_total_qty = max(cint(asset_info.asset_quantity), 1)
+                row_total_qty = cint(d.total_asset_qty)
+                if row_total_qty > 1 and row_total_qty != db_total_qty:
+                    frappe.db.set_value("Asset", d.asset_name, "asset_quantity", row_total_qty)
+                    total_qty = row_total_qty
+                else:
+                    total_qty = db_total_qty
                 d.total_asset_qty = total_qty
                 booked_qty = get_max_booked_qty_for_asset(
                     d.asset_name, target_dates, exclude=self.name
@@ -692,6 +698,18 @@ def get_active_bookings_holding(assets, exclude=None, target_date=None):
     for row in main_conflicts + alt_conflicts:
         blocking.setdefault(row.asset, row.name)
     return blocking
+
+
+@frappe.whitelist()
+def update_asset_quantity(asset, asset_quantity, party_date=None, exclude_booking=None):
+    """Allow updating Asset.asset_quantity even on submitted Assets, then return updated availability."""
+    if not asset:
+        return {}
+    if not user_has_role(CONFIRM_ROLES + [ROLE_ACCOUNTANT]):
+        frappe.throw(_("You are not allowed to perform this action."), frappe.PermissionError)
+    new_qty = max(cint(asset_quantity), 1)
+    frappe.db.set_value("Asset", asset, "asset_quantity", new_qty)
+    return get_asset_availability_info(asset, party_date=party_date, exclude_booking=exclude_booking)
 
 
 @frappe.whitelist()
