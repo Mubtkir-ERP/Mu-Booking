@@ -10,13 +10,15 @@
   "asset_name",
   "asset_title",
   "asset_value",
+  "total_asset_qty",
+  "available_qty",
   "qty",
   "asset_booking_status",
   "notes"
  ],
  "fields": [
   {
-   "columns": 2,
+   "columns": 1,
    "fieldname": "asset_type",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -25,11 +27,13 @@
   },
   {
    "columns": 2,
+   "description": "Asset Barcode",
    "fieldname": "asset_name",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Asset",
-   "options": "Asset"
+   "options": "Asset",
+   "reqd": 1
   },
   {
    "columns": 2,
@@ -43,10 +47,28 @@
   {
    "columns": 2,
    "fetch_from": "asset_name.gross_purchase_amount",
+   "fetch_if_empty": 1,
    "fieldname": "asset_value",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Asset Value",
+   "label": "Asset Value"
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fetch_from": "asset_name.asset_quantity",
+   "fieldname": "total_asset_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Total Asset Qty",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "available_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Available Qty",
    "read_only": 1
   },
   {
@@ -55,7 +77,8 @@
    "fieldname": "qty",
    "fieldtype": "Int",
    "in_list_view": 1,
-   "label": "Quantity"
+   "label": "Quantity",
+   "reqd": 1
   },
   {
    "columns": 1,
@@ -76,7 +99,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-01 13:36:27.590847",
+ "modified": "2026-11-03 11:15:00.000000",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Booking Asset",

@@ -36,18 +36,20 @@
    "reqd": 1
   },
   {
+   "fetch_from": "party_booking.customer",
    "fieldname": "customer",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Customer",
    "options": "Customer",
-   "read_only": 1,
-   "fetch_from": "party_booking.customer"
+   "read_only": 1
   },
   {
+   "bold": 1,
    "fetch_from": "party_booking.customer_name",
    "fieldname": "customer_name",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Customer Name",
    "read_only": 1
   },
@@ -144,7 +146,8 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-05 22:42:18.147358",
+ "make_attachments_public": 1,
+ "modified": "2026-11-03 11:20:00.000000",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Asset Return",
@@ -207,7 +210,9 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "customer_name"
 }

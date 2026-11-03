@@ -10,3 +10,4 @@ mu_booking.patches.v1_0.force_reload_party_booking_v2
 mu_booking.patches.v1_1.rename_booking_officer_to_installation_manager
 mu_booking.patches.v1_1.replace_workflow_with_status
 mu_booking.patches.v1_1.employee_link_display
+mu_booking.patches.v1_1.setup_kanban_and_properties

@@ -14,9 +14,11 @@
   "receiver_mobile",
   "cb_1",
   "party_location",
+  "installation_address",
   "location_link",
   "open_map",
   "customer_notes",
+  "reference_image",
   "booking_section",
   "event_type",
   "service_type",
@@ -24,6 +26,7 @@
   "status",
   "cb_2",
   "party_date",
+  "party_day",
   "party_time",
   "installation_manager",
   "recurring_section",
@@ -68,27 +71,31 @@
    "fieldname": "customer",
    "fieldtype": "Link",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Customer",
    "options": "Customer",
    "reqd": 1
   },
   {
+   "bold": 1,
    "fetch_from": "customer.customer_name",
+   "fetch_if_empty": 0,
    "fieldname": "customer_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Customer Name",
-   "read_only": 1
+   "in_standard_filter": 1,
+   "label": "Customer Name"
   },
   {
    "fetch_from": "customer.mobile_no",
+   "fetch_if_empty": 0,
    "fieldname": "customer_mobile",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Customer Mobile",
-   "read_only": 1
+   "label": "Customer Mobile"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "receiver_mobile",
    "fieldtype": "Data",
    "label": "Receiver Mobile"
@@ -98,11 +105,19 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "party_location",
    "fieldtype": "Data",
    "label": "Party Location"
   },
   {
+   "allow_on_submit": 1,
+   "fieldname": "installation_address",
+   "fieldtype": "Small Text",
+   "label": "Installation Address"
+  },
+  {
+   "allow_on_submit": 1,
    "fieldname": "location_link",
    "fieldtype": "Data",
    "label": "Location Link (Google Maps)"
@@ -114,9 +129,17 @@
    "label": "Open Location on Map"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "customer_notes",
    "fieldtype": "Small Text",
    "label": "Customer Notes"
+  },
+  {
+   "allow_on_submit": 1,
+   "description": "Attach any reference photo for the order (site photo, design theme, receipt, etc.)",
+   "fieldname": "reference_image",
+   "fieldtype": "Attach Image",
+   "label": "Order Reference Image"
   },
   {
    "fieldname": "booking_section",
@@ -160,6 +183,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "party_date",
    "fieldtype": "Date",
    "in_list_view": 1,
@@ -167,6 +191,15 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
+   "fieldname": "party_day",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Day",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
    "fieldname": "party_time",
    "fieldtype": "Time",
    "in_list_view": 1,
@@ -194,6 +227,7 @@
    "options": "\nDaily\nWeekly\nMonthly\nManual"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:in_list(['Daily', 'Weekly', 'Monthly'], doc.recurring_pattern)",
    "fieldname": "start_date",
    "fieldtype": "Date",
@@ -204,12 +238,14 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:in_list(['Weekly', 'Monthly'], doc.recurring_pattern)",
    "fieldname": "end_date",
    "fieldtype": "Date",
    "label": "End Date"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.recurring_pattern=='Daily'",
    "fieldname": "number_of_days",
    "fieldtype": "Int",
@@ -293,6 +329,7 @@
    "label": "Sessions"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "sessions",
    "fieldtype": "Table",
    "label": "Booking Sessions",
@@ -325,6 +362,7 @@
    "label": "Security Deposit"
   },
   {
+   "allow_on_submit": 1,
    "default": "Pending",
    "fieldname": "deposit_status",
    "fieldtype": "Select",
@@ -355,7 +393,9 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-30 13:00:51.040328",
+ "make_attachments_public": 1,
+ "max_attachments": 20,
+ "modified": "2026-11-03 11:20:00.000000",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Booking",
@@ -418,8 +458,10 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
- "search_fields": "customer_name,event_type,party_date",
+ "search_fields": "customer_name,customer_mobile,event_type,party_date",
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "customer_name"
 }

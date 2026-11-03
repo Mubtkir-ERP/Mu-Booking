@@ -1,9 +1,9 @@
 [project]
 name = "mu_booking"
 authors = [
-    { name = "Mu Booking", email = "nada.khaled031.nk@gmail.com"}
+    { name = "Mubtkir", email = "apps@mubtkir.com"}
 ]
-description = "Mu Booking"
+description = "Party & Event Asset Booking Management System - Mubtkir ERP (https://www.mubtkir.com)"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]

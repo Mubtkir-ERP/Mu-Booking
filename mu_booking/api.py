@@ -1,3 +1,5 @@
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import getdate, today
@@ -12,29 +14,29 @@ def create_bot_booking(
     event_type=None,
     service_type="Delivery Only",
     party_location=None,
+    installation_address=None,
     location_link=None,
     booking_type="One-time",
     customer_notes=None,
-    receiver_mobile=None
+    receiver_mobile=None,
 ):
     """
     API endpoint for the AI Bot to create a new Party Booking (Draft / Initial state).
     POST to: /api/method/mu_booking.api.create_bot_booking
     """
     # -- Input validation --
-    if not customer_name or not customer_name.strip():
+    if not isinstance(customer_name, str) or not customer_name.strip():
         return {"status": "error", "message": _("Customer name is required.")}
 
-    if not customer_mobile or not customer_mobile.strip():
+    if not isinstance(customer_mobile, str) or not customer_mobile.strip():
         return {"status": "error", "message": _("Customer mobile is required.")}
 
-    # E01 FIX: Validate mobile number format (must contain only digits, +, spaces, or dashes)
-    import re
+    # Validate mobile number format (must contain only digits, +, spaces, or dashes)
     mobile_clean = customer_mobile.strip().replace(" ", "").replace("-", "")
-    if not re.match(r'^\+?[0-9]{7,15}$', mobile_clean):
+    if not re.match(r"^\+?[0-9]{7,15}$", mobile_clean):
         return {"status": "error", "message": _("Customer mobile must be a valid phone number.")}
 
-    if not party_date:
+    if not party_date or not isinstance(party_date, str):
         return {"status": "error", "message": _("Party date is required.")}
 
     if getdate(party_date) < getdate(today()):
@@ -46,21 +48,21 @@ def create_bot_booking(
     if service_type not in ("Delivery Only", "Delivery and Installation"):
         return {"status": "error", "message": _("Invalid service_type.")}
 
-    # E01 FIX: Deduplication — block duplicate bookings (same mobile + same date, not cancelled)
+    # Deduplication — block duplicate bookings (same mobile + same date, not cancelled)
     existing = frappe.db.get_value(
         "Party Booking",
         {
             "customer_mobile": customer_mobile.strip(),
             "party_date": party_date,
-            "docstatus": ["!=", 2]  # not cancelled
+            "docstatus": ["!=", 2],  # not cancelled
         },
-        "name"
+        "name",
     )
     if existing:
         return {
             "status": "duplicate",
             "message": _("A booking already exists for this mobile number on the same date."),
-            "existing_booking_id": existing
+            "existing_booking_id": existing,
         }
 
     try:
@@ -70,13 +72,14 @@ def create_bot_booking(
             new_customer = frappe.get_doc({
                 "doctype": "Customer",
                 "customer_name": customer_name.strip(),
-                "customer_group": "Commercial",  # default
-                "territory": "All Territories",  # default
+                "customer_group": "Commercial",
+                "territory": "All Territories",
                 "customer_type": "Individual",
-                "mobile_no": customer_mobile.strip()
+                "mobile_no": customer_mobile.strip(),
             })
             new_customer.insert(ignore_permissions=True)
             customer_id = new_customer.name
+
         booking = frappe.get_doc({
             "doctype": "Party Booking",
             "customer": customer_id,
@@ -88,9 +91,10 @@ def create_bot_booking(
             "event_type": event_type,
             "service_type": service_type,
             "party_location": party_location,
+            "installation_address": installation_address,
             "location_link": location_link,
             "booking_type": booking_type,
-            "customer_notes": customer_notes
+            "customer_notes": customer_notes,
         })
 
         booking.insert(ignore_permissions=True)
@@ -99,56 +103,43 @@ def create_bot_booking(
         return {
             "status": "success",
             "message": _("Booking created successfully."),
-            "booking_id": booking.name
+            "booking_id": booking.name,
         }
 
     except Exception as e:
         frappe.log_error(title="Bot Booking API Error", message=frappe.get_traceback())
         return {
             "status": "error",
-            "message": f"Error: {str(e)}"
+            "message": f"Error: {str(e)}",
         }
 
-@frappe.whitelist()
+
 def schedule_reminders():
     """
     Hourly scheduled job to create 'Party Booking Reminder' records
     for bookings that are within the next 24 hours.
     """
-    # Get tomorrow's date
     target_date = frappe.utils.add_days(frappe.utils.today(), 1)
-    
-    # Find bookings scheduled for tomorrow that are Confirmed
+
     bookings = frappe.get_all(
         "Party Booking",
         filters={
             "docstatus": 1,
             "status": ["in", ["Confirmed", "Delivery/Installation Scheduled"]],
-            "party_date": target_date
+            "party_date": target_date,
         },
-        fields=["name", "customer_name"]
+        fields=["name", "customer_name"],
     )
-    
+
     for b in bookings:
-        # Check if a reminder was already created for this booking
         if not frappe.db.exists("Party Booking Reminder", {"booking": b.name}):
             try:
                 reminder = frappe.get_doc({
                     "doctype": "Party Booking Reminder",
-                    "booking": b.name
+                    "booking": b.name,
                 })
                 reminder.insert(ignore_permissions=True)
             except Exception as e:
-                frappe.log_error(f"Failed to create reminder for {b.name}: {str(e)}", "Schedule Reminders Error")
-
-@frappe.whitelist(allow_guest=True)
-def export_event_type():
-    try:
-        doc = frappe.get_doc("DocType", "Event Type")
-        doc.custom = 0
-        doc.module = "Mu Booking"
-        doc.save(ignore_permissions=True)
-        frappe.db.commit()
-        return "SUCCESS"
-    except Exception as e:
-        return str(e)
+                frappe.log_error(
+                    f"Failed to create reminder for {b.name}: {str(e)}", "Schedule Reminders Error"
+                )
