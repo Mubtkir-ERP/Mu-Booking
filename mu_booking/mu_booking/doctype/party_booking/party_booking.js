@@ -36,9 +36,14 @@ frappe.ui.form.on("Party Booking", {
 		}
 		render_pickup_and_employee_banner(frm);
 		render_action_buttons(frm);
+		render_order_images_preview(frm);
 		render_asset_gallery(frm);
 		render_employee_guide(frm);
 		refresh_all_assets_availability(frm);
+	},
+
+	reference_image(frm) {
+		render_order_images_preview(frm);
 	},
 
 	installation_manager(frm) {
@@ -644,7 +649,12 @@ function render_asset_gallery(frm) {
 			filters: { name: ["in", asset_names] },
 			fields: ["name", "asset_name", "image", "gross_purchase_amount", "asset_quantity"],
 		})
-		.then((assets) => wrapper.html(build_gallery_html(assets)));
+		.then((assets) => {
+			wrapper.html(build_gallery_html(assets));
+			wrapper.find(".mu-zoomable-img").on("click", function () {
+				open_image_lightbox($(this).attr("data-src"), $(this).attr("data-title"));
+			});
+		});
 }
 
 function build_gallery_html(assets) {
@@ -653,8 +663,9 @@ function build_gallery_html(assets) {
 			const title = frappe.utils.escape_html(asset.asset_name || asset.name);
 			const barcode = frappe.utils.escape_html(asset.name);
 			const total_qty = Number(asset.asset_quantity || 1);
+			const safe_src = asset.image ? encodeURI(asset.image) : "";
 			const image = asset.image
-				? `<img src="${encodeURI(asset.image)}" alt="${title}" style="width:100%;height:120px;object-fit:cover;">`
+				? `<img class="mu-zoomable-img" data-src="${safe_src}" data-title="${title}" src="${safe_src}" alt="${title}" title="${__("Click to enlarge image")}" style="width:100%;height:120px;object-fit:cover;cursor:zoom-in;">`
 				: `<div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);">${frappe.utils.icon("image", "lg")}</div>`;
 			return `
 				<div style="width:180px;border:1px solid var(--border-color);border-radius:var(--border-radius-md);overflow:hidden;background:var(--card-bg);">
@@ -670,6 +681,129 @@ function build_gallery_html(assets) {
 		.join("");
 
 	return `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">${cards}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Inline Order Reference Images Preview & Lightbox (Point 9)
+// ---------------------------------------------------------------------------
+
+function render_order_images_preview(frm) {
+	const field = frm.get_field("reference_image_preview");
+	if (!field || !field.$wrapper) {
+		return;
+	}
+	const wrapper = field.$wrapper;
+	const images = [];
+	const seen = new Set();
+
+	const add_img = (url, label) => {
+		if (!url) {
+			return;
+		}
+		const clean = url.trim();
+		if (!clean || seen.has(clean)) {
+			return;
+		}
+		seen.add(clean);
+		images.push({ url: clean, label: label || __("Order Reference Image") });
+	};
+
+	if (frm.doc.reference_image) {
+		add_img(frm.doc.reference_image, __("Order Reference Image"));
+	}
+
+	if (frm.attachments && typeof frm.attachments.get_attachments === "function") {
+		const attachments = frm.attachments.get_attachments() || [];
+		attachments.forEach((att) => {
+			const file_url = att.file_url || "";
+			if (/\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(file_url)) {
+				add_img(file_url, att.file_name || __("Attached Image"));
+			}
+		});
+	}
+
+	if (!images.length) {
+		wrapper.empty();
+		return;
+	}
+
+	const cards = images
+		.map((img) => {
+			const safe_url = encodeURI(img.url);
+			const safe_label = frappe.utils.escape_html(img.label);
+			return `
+				<div class="mu-ref-img-card" data-src="${safe_url}" data-title="${safe_label}"
+					style="border:1px solid var(--border-color);border-radius:var(--border-radius-md);overflow:hidden;background:var(--card-bg);width:200px;cursor:zoom-in;box-shadow:var(--shadow-xs);">
+					<img src="${safe_url}" alt="${safe_label}" style="width:100%;height:140px;object-fit:cover;display:block;">
+					<div style="padding:6px 8px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+						<span class="small ellipsis" style="font-weight:600;" title="${safe_label}">${safe_label}</span>
+						<span class="text-muted small">🔍 ${__("Preview")}</span>
+					</div>
+				</div>
+			`;
+		})
+		.join("");
+
+	const attach_more_btn = !frm.is_new()
+		? `<button type="button" class="btn btn-xs btn-default mu-attach-more-img" style="margin-top:8px;">
+				+ ${__("Attach Additional Order Image")}
+		   </button>`
+		: "";
+
+	wrapper.html(`
+		<div style="margin:6px 0 12px 0;">
+			<div class="text-muted small" style="margin-bottom:6px;">
+				🖼️ ${__("Attached Order Images (Click image to enlarge)")}:
+			</div>
+			<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">
+				${cards}
+			</div>
+			${attach_more_btn}
+		</div>
+	`);
+
+	wrapper.find(".mu-ref-img-card").on("click", function () {
+		open_image_lightbox($(this).attr("data-src"), $(this).attr("data-title"));
+	});
+
+	wrapper.find(".mu-attach-more-img").on("click", function () {
+		new frappe.ui.FileUploader({
+			doctype: frm.doctype,
+			docname: frm.docname,
+			make_attachments_public: true,
+			on_success() {
+				frm.reload_doc();
+			},
+		});
+	});
+}
+
+function open_image_lightbox(src, title) {
+	if (!src) {
+		return;
+	}
+	const safe_src = encodeURI(src);
+	const safe_title = frappe.utils.escape_html(title || __("Image Preview"));
+	const dialog = new frappe.ui.Dialog({
+		title: safe_title,
+		size: "large",
+		fields: [
+			{
+				fieldname: "preview_html",
+				fieldtype: "HTML",
+				options: `
+					<div style="text-align:center;padding:8px;">
+						<img src="${safe_src}" alt="${safe_title}" style="max-width:100%;max-height:72vh;border-radius:8px;object-fit:contain;box-shadow:var(--shadow-md);">
+					</div>
+				`,
+			},
+		],
+		primary_action_label: __("Open in New Tab"),
+		primary_action() {
+			window.open(safe_src, "_blank", "noopener,noreferrer");
+		},
+	});
+	dialog.show();
 }
 
 // ---------------------------------------------------------------------------

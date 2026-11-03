@@ -19,6 +19,7 @@
   "open_map",
   "customer_notes",
   "reference_image",
+  "reference_image_preview",
   "booking_section",
   "event_type",
   "service_type",
@@ -152,6 +153,11 @@
    "fieldname": "reference_image",
    "fieldtype": "Attach Image",
    "label": "Order Reference Image"
+  },
+  {
+   "fieldname": "reference_image_preview",
+   "fieldtype": "HTML",
+   "label": "Order Images Preview"
   },
   {
    "fieldname": "booking_section",
@@ -496,6 +502,7 @@
   }
  ],
  "grid_page_length": 50,
+ "image_field": "reference_image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
