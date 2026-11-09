@@ -19,6 +19,7 @@ def create_bot_booking(
     booking_type="One-time",
     customer_notes=None,
     receiver_mobile=None,
+    sales_person=None,
 ):
     """
     API endpoint for the AI Bot to create a new Party Booking (Draft / Initial state).
@@ -97,12 +98,20 @@ def create_bot_booking(
             new_customer.insert(ignore_permissions=True)
             customer_id = new_customer.name
 
+        resolved_sales_person = sales_person
+        if not resolved_sales_person:
+            resolved_sales_person = (
+                frappe.db.get_value("Sales Person", {"enabled": 1, "is_group": 0}, "name")
+                or frappe.db.get_value("Sales Person", {"enabled": 1}, "name")
+            )
+
         booking = frappe.get_doc({
             "doctype": "Party Booking",
             "customer": customer_id,
             "customer_name": customer_name_clean,
             "customer_mobile": customer_mobile.strip(),
             "receiver_mobile": (receiver_mobile or "").strip()[:30] if isinstance(receiver_mobile, str) else None,
+            "sales_person": resolved_sales_person,
             "party_date": party_date,
             "party_time": party_time,
             "event_type": event_type,

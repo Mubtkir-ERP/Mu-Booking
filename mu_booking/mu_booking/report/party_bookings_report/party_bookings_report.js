@@ -13,6 +13,12 @@ frappe.query_reports["Party Bookings Report"] = {
 			"default": frappe.datetime.add_months(frappe.datetime.get_today(), 3)
 		},
 		{
+			"fieldname": "sales_person",
+			"label": __("Sales Person"),
+			"fieldtype": "Link",
+			"options": "Sales Person"
+		},
+		{
 			"fieldname": "status",
 			"label": __("Status"),
 			"fieldtype": "Select",

@@ -17,6 +17,7 @@ def get_columns():
 		{"fieldname": "booking_id", "label": _("Booking ID"), "fieldtype": "Link", "options": "Party Booking", "width": 150},
 		{"fieldname": "name", "label": _("Return Document"), "fieldtype": "Link", "options": "Party Asset Return", "width": 160},
 		{"fieldname": "customer_name", "label": _("Customer Name"), "fieldtype": "Data", "width": 150},
+		{"fieldname": "sales_person", "label": _("Sales Person"), "fieldtype": "Link", "options": "Sales Person", "width": 140},
 		{"fieldname": "refund_date", "label": _("Return Date"), "fieldtype": "Date", "width": 120},
 		{"fieldname": "original_deposit", "label": _("Deposit Amount"), "fieldtype": "Currency", "width": 130},
 		{"fieldname": "refund_amount", "label": _("Returned Amount"), "fieldtype": "Currency", "width": 130},
@@ -38,11 +39,16 @@ def get_data(filters):
 		conditions += " AND r.refund_date <= %(to_date)s"
 		values["to_date"] = filters.get("to_date")
 
+	if filters.get("sales_person"):
+		conditions += " AND b.sales_person = %(sales_person)s"
+		values["sales_person"] = filters.get("sales_person")
+
 	query = f"""
 		SELECT
 			r.party_booking AS booking_id,
 			r.name,
 			b.customer_name,
+			b.sales_person,
 			r.refund_date,
 			r.original_deposit,
 			r.refund_amount,

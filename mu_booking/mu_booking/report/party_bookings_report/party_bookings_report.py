@@ -17,6 +17,7 @@ def get_columns():
 		{"fieldname": "name", "label": _("Booking ID"), "fieldtype": "Link", "options": "Party Booking", "width": 140},
 		{"fieldname": "customer_name", "label": _("Customer Name"), "fieldtype": "Data", "width": 150},
 		{"fieldname": "customer_mobile", "label": _("Customer Mobile"), "fieldtype": "Data", "width": 120},
+		{"fieldname": "sales_person", "label": _("Sales Person"), "fieldtype": "Link", "options": "Sales Person", "width": 140},
 		{"fieldname": "party_date", "label": _("Party Date"), "fieldtype": "Date", "width": 110},
 		{"fieldname": "party_day", "label": _("Day"), "fieldtype": "Data", "width": 95},
 		{"fieldname": "party_time", "label": _("Party Time"), "fieldtype": "Time", "width": 100},
@@ -52,11 +53,16 @@ def get_data(filters):
 		conditions += " AND booking_type = %(booking_type)s"
 		values["booking_type"] = filters.get("booking_type")
 
+	if filters.get("sales_person"):
+		conditions += " AND sales_person = %(sales_person)s"
+		values["sales_person"] = filters.get("sales_person")
+
 	query = f"""
 		SELECT
 			name,
 			customer_name,
 			customer_mobile,
+			sales_person,
 			party_date,
 			party_day,
 			party_time,

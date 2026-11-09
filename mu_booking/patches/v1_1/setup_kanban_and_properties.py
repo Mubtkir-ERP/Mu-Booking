@@ -136,6 +136,7 @@ def setup_kanban_board():
     fields_to_show = [
         "customer_name",
         "customer_mobile",
+        "sales_person",
         "party_date",
         "party_day",
         "party_time",

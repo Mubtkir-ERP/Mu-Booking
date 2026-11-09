@@ -19,6 +19,7 @@ def get_columns():
 		{"fieldname": "asset_value", "label": _("Asset Value"), "fieldtype": "Currency", "width": 120},
 		{"fieldname": "booking_id", "label": _("Booking ID"), "fieldtype": "Link", "options": "Party Booking", "width": 140},
 		{"fieldname": "customer_name", "label": _("Customer Name"), "fieldtype": "Data", "width": 150},
+		{"fieldname": "sales_person", "label": _("Sales Person"), "fieldtype": "Link", "options": "Sales Person", "width": 140},
 		{"fieldname": "party_date", "label": _("Party Date"), "fieldtype": "Date", "width": 110},
 		{"fieldname": "return_doc", "label": _("Return Document"), "fieldtype": "Link", "options": "Party Asset Return", "width": 150},
 		{"fieldname": "return_date", "label": _("Return Date"), "fieldtype": "Date", "width": 110},
@@ -39,6 +40,10 @@ def get_data(filters):
 		conditions += " AND COALESCE(r.refund_date, b.party_date) <= %(to_date)s"
 		values["to_date"] = filters.get("to_date")
 
+	if filters.get("sales_person"):
+		conditions += " AND b.sales_person = %(sales_person)s"
+		values["sales_person"] = filters.get("sales_person")
+
 	query = f"""
 		SELECT
 			pba.asset_name AS asset_name,
@@ -46,6 +51,7 @@ def get_data(filters):
 			COALESCE(pba.asset_value, a.gross_purchase_amount, 0) AS asset_value,
 			b.name AS booking_id,
 			b.customer_name AS customer_name,
+			b.sales_person AS sales_person,
 			b.party_date AS party_date,
 			r.name AS return_doc,
 			r.refund_date AS return_date,

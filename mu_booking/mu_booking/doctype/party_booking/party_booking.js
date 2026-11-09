@@ -13,6 +13,7 @@ frappe.ui.form.on("Party Booking", {
 	setup(frm) {
 		frm.set_query("asset_name", "assets", () => ({ filters: AVAILABLE_ASSET_FILTERS }));
 		frm.set_query("alternative_asset", "sessions", () => ({ filters: AVAILABLE_ASSET_FILTERS }));
+		frm.set_query("sales_person", () => ({ filters: { enabled: 1 } }));
 	},
 
 	onload(frm) {

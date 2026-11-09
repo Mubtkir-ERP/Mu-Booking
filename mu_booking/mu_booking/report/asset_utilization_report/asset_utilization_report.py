@@ -39,6 +39,9 @@ def get_data(filters):
 		date_condition = " AND pb.party_date BETWEEN %(from_date)s AND %(to_date)s "
 		values["from_date"] = filters.get("from_date")
 		values["to_date"] = filters.get("to_date")
+	if filters.get("sales_person"):
+		date_condition += " AND pb.sales_person = %(sales_person)s "
+		values["sales_person"] = filters.get("sales_person")
 
 	query = f"""
 		SELECT

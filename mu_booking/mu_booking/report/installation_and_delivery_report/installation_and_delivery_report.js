@@ -13,6 +13,12 @@ frappe.query_reports["Installation and Delivery Report"] = {
 			"default": frappe.datetime.add_months(frappe.datetime.get_today(), 3)
 		},
 		{
+			"fieldname": "sales_person",
+			"label": __("Sales Person"),
+			"fieldtype": "Link",
+			"options": "Sales Person"
+		},
+		{
 			"fieldname": "installation_manager",
 			"label": __("Installation Manager"),
 			"fieldtype": "Link",
