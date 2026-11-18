@@ -139,7 +139,7 @@ def setup_kanban_board():
         "sales_person",
         "party_date",
         "party_day",
-        "party_time",
+        "party_time_12h",
         "party_location",
         "installation_address",
         "installation_manager_name",

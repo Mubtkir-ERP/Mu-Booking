@@ -12,6 +12,19 @@ $(document).on("NodeInserted DOMNodeInserted", () => {
 frappe.ui.form.on("Party Booking", {
 	setup(frm) {
 		frm.set_query("asset_name", "assets", () => ({ filters: AVAILABLE_ASSET_FILTERS }));
+		frm.set_query("item_code", "assets", (_doc, cdt, cdn) => {
+			const row = locals[cdt][cdn] || {};
+			const filters = { disabled: 0 };
+			if (row.entry_type === "Product") {
+				filters.is_stock_item = 1;
+			} else if (row.entry_type === "Service") {
+				filters.is_stock_item = 0;
+			}
+			if (row.asset_type) {
+				filters.item_group = row.asset_type;
+			}
+			return { filters };
+		});
 		frm.set_query("alternative_asset", "sessions", () => ({ filters: AVAILABLE_ASSET_FILTERS }));
 		frm.set_query("sales_person", () => ({ filters: { enabled: 1 } }));
 	},
@@ -23,11 +36,14 @@ frappe.ui.form.on("Party Booking", {
 		}
 		// Open new bookings with one empty asset row ready to fill
 		if (frm.is_new() && !(frm.doc.assets || []).length) {
-			frm.add_child("assets");
+			frm.add_child("assets", { entry_type: "Asset" });
 			frm.refresh_field("assets");
 		}
 		if (frm.doc.party_date && !frm.doc.party_day) {
 			update_party_day(frm);
+		}
+		if (frm.doc.party_time && !frm.doc.party_time_12h) {
+			sync_main_time_fields(frm, "time");
 		}
 	},
 
@@ -79,6 +95,14 @@ frappe.ui.form.on("Party Booking", {
 		refresh_all_assets_availability(frm);
 	},
 
+	party_time(frm) {
+		sync_main_time_fields(frm, "time");
+	},
+
+	party_time_period(frm) {
+		sync_main_time_fields(frm, "period");
+	},
+
 	start_date(frm) {
 		calculate_daily_end_date(frm);
 	},
@@ -89,15 +113,66 @@ frappe.ui.form.on("Party Booking", {
 });
 
 frappe.ui.form.on("Party Booking Asset", {
+	entry_type(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		const entry_type = row.entry_type || "Asset";
+		if (entry_type === "Asset") {
+			frappe.model.set_value(cdt, cdn, "item_code", "");
+		} else {
+			frappe.model.set_value(cdt, cdn, "asset_name", "");
+		}
+		frappe.model.set_value(cdt, cdn, "asset_title", "");
+		frappe.model.set_value(cdt, cdn, "asset_value", 0);
+		frm.refresh_field("assets");
+		frm._assets_gallery_key = null;
+		render_asset_gallery(frm);
+	},
 	asset_name(frm, cdt, cdn) {
 		guard_scroll_position();
 		const row = locals[cdt][cdn];
+		if (row.asset_name && row.entry_type && row.entry_type !== "Asset") {
+			frappe.model.set_value(cdt, cdn, "entry_type", "Asset");
+		}
+		frm._assets_gallery_key = null;
 		render_asset_gallery(frm);
 		update_and_check_asset_row(frm, row, true);
 	},
+	item_code(frm, cdt, cdn) {
+		guard_scroll_position();
+		const row = locals[cdt][cdn];
+		if (!row.item_code) {
+			return;
+		}
+		frappe
+			.xcall("mu_booking.mu_booking.doctype.party_booking.party_booking.get_item_details_for_booking", {
+				item_code: row.item_code,
+			})
+			.then((info) => {
+				if (!info || !info.item_code) {
+					return;
+				}
+				frappe.model.set_value(cdt, cdn, "asset_title", info.item_name || row.item_code);
+				if (info.item_group && !row.asset_type) {
+					frappe.model.set_value(cdt, cdn, "asset_type", info.item_group);
+				}
+				if (info.price) {
+					frappe.model.set_value(cdt, cdn, "asset_value", info.price);
+				}
+				const stock_qty = Number(info.stock_qty || row.qty || 1);
+				row._syncing_total_qty = true;
+				frappe.model.set_value(cdt, cdn, "total_asset_qty", stock_qty).finally(() => {
+					row._syncing_total_qty = false;
+				});
+				frappe.model.set_value(cdt, cdn, "available_qty", stock_qty);
+				frm._assets_gallery_key = null;
+				render_asset_gallery(frm);
+			});
+	},
 	qty(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
-		update_and_check_asset_row(frm, row, true);
+		if ((row.entry_type || "Asset") === "Asset") {
+			update_and_check_asset_row(frm, row, true);
+		}
 	},
 	total_asset_qty(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
@@ -140,6 +215,12 @@ frappe.ui.form.on("Party Booking Session", {
 			frappe.model.set_value(cdt, cdn, "session_day", get_weekday_label(row.session_date));
 		}
 	},
+	session_time(frm, cdt, cdn) {
+		sync_session_time_fields(cdt, cdn, "time");
+	},
+	session_time_period(frm, cdt, cdn) {
+		sync_session_time_fields(cdt, cdn, "period");
+	},
 	alternative_asset(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
 		if (row.alternative_asset) {
@@ -170,9 +251,84 @@ function update_party_day(frm) {
 	}
 }
 
+function compute_time_and_period(time_str, period_val, source) {
+	if (!time_str) {
+		return { norm_24h: "", period: period_val || "PM", disp_12h: "" };
+	}
+	const parts = String(time_str).trim().split(":");
+	let hour = parseInt(parts[0], 10);
+	const minute = parts.length > 1 ? parseInt(parts[1], 10) || 0 : 0;
+	const second = parts.length > 2 ? parseInt(parts[2], 10) || 0 : 0;
+	if (isNaN(hour)) {
+		return { norm_24h: time_str, period: period_val || "PM", disp_12h: time_str };
+	}
+
+	let period = period_val || (hour >= 12 ? "PM" : "AM");
+	if (source === "period") {
+		if (period === "PM" && hour >= 0 && hour < 12) {
+			hour = hour === 0 ? 12 : hour + 12;
+		} else if (period === "AM" && hour >= 12) {
+			hour = hour === 12 ? 0 : hour - 12;
+		}
+	} else {
+		// source === "time"
+		period = hour >= 12 ? "PM" : "AM";
+	}
+
+	const hour_12 = hour % 12 || 12;
+	const pad = (n) => (n < 10 ? "0" + n : String(n));
+	const norm_24h = `${pad(hour)}:${pad(minute)}:${pad(second)}`;
+	const period_label = period === "PM" ? __("PM") : __("AM");
+	const disp_12h = `${pad(hour_12)}:${pad(minute)} ${period_label}`;
+	return { norm_24h, period, disp_12h };
+}
+
+function sync_main_time_fields(frm, source) {
+	if (frm._syncing_time) {
+		return;
+	}
+	frm._syncing_time = true;
+	try {
+		const res = compute_time_and_period(frm.doc.party_time, frm.doc.party_time_period, source);
+		if (res.norm_24h && frm.doc.party_time !== res.norm_24h) {
+			frm.set_value("party_time", res.norm_24h);
+		}
+		if (frm.doc.party_time_period !== res.period) {
+			frm.set_value("party_time_period", res.period);
+		}
+		if (frm.doc.party_time_12h !== res.disp_12h) {
+			frm.set_value("party_time_12h", res.disp_12h);
+		}
+	} finally {
+		frm._syncing_time = false;
+	}
+}
+
+function sync_session_time_fields(cdt, cdn, source) {
+	const row = locals[cdt][cdn];
+	if (!row || row._syncing_time) {
+		return;
+	}
+	row._syncing_time = true;
+	try {
+		const res = compute_time_and_period(row.session_time, row.session_time_period, source);
+		if (res.norm_24h && row.session_time !== res.norm_24h) {
+			frappe.model.set_value(cdt, cdn, "session_time", res.norm_24h);
+		}
+		if (row.session_time_period !== res.period) {
+			frappe.model.set_value(cdt, cdn, "session_time_period", res.period);
+		}
+		if (row.session_time_12h !== res.disp_12h) {
+			frappe.model.set_value(cdt, cdn, "session_time_12h", res.disp_12h);
+		}
+	} finally {
+		row._syncing_time = false;
+	}
+}
+
 function refresh_all_assets_availability(frm) {
 	(frm.doc.assets || []).forEach((row) => {
-		if (row.asset_name) {
+		if ((row.entry_type || "Asset") === "Asset" && row.asset_name) {
 			update_and_check_asset_row(frm, row, false);
 		}
 	});
@@ -629,59 +785,108 @@ function apply_action(frm, action, extra_args = {}) {
 
 function render_asset_gallery(frm) {
 	const wrapper = frm.get_field("assets_gallery").$wrapper;
+	const rows = frm.doc.assets || [];
 	const asset_names = [
-		...new Set((frm.doc.assets || []).map((row) => row.asset_name).filter(Boolean)),
+		...new Set(
+			rows
+				.filter((r) => (r.entry_type || "Asset") === "Asset" && r.asset_name)
+				.map((r) => r.asset_name)
+		),
+	].sort();
+	const item_codes = [
+		...new Set(
+			rows
+				.filter((r) => ["Product", "Service"].includes(r.entry_type) && r.item_code)
+				.map((r) => r.item_code)
+		),
 	].sort();
 
 	// Skip when nothing changed (refresh calls this too)
-	const key = asset_names.join("|");
+	const key = `A:${asset_names.join("|")}::I:${item_codes.join("|")}`;
 	if (frm._assets_gallery_key === key) {
 		return;
 	}
 	frm._assets_gallery_key = key;
 
-	if (!asset_names.length) {
+	if (!asset_names.length && !item_codes.length) {
 		wrapper.empty();
 		return;
 	}
 
-	frappe.db
-		.get_list("Asset", {
-			filters: { name: ["in", asset_names] },
-			fields: ["name", "asset_name", "image", "gross_purchase_amount", "asset_quantity"],
-		})
-		.then((assets) => {
-			wrapper.html(build_gallery_html(assets));
-			wrapper.find(".mu-zoomable-img").on("click", function () {
-				open_image_lightbox($(this).attr("data-src"), $(this).attr("data-title"));
-			});
+	const asset_promise = asset_names.length
+		? frappe.db.get_list("Asset", {
+				filters: { name: ["in", asset_names] },
+				fields: ["name", "asset_name", "image", "gross_purchase_amount", "asset_quantity"],
+		  })
+		: Promise.resolve([]);
+
+	const item_promise = item_codes.length
+		? frappe.db.get_list("Item", {
+				filters: { name: ["in", item_codes] },
+				fields: ["name", "item_name", "image", "standard_rate", "is_stock_item"],
+		  })
+		: Promise.resolve([]);
+
+	Promise.all([asset_promise, item_promise]).then(([assets, items]) => {
+		wrapper.html(build_gallery_html(assets, items, rows));
+		wrapper.find(".mu-zoomable-img").on("click", function () {
+			open_image_lightbox($(this).attr("data-src"), $(this).attr("data-title"));
 		});
+	});
 }
 
-function build_gallery_html(assets) {
-	const cards = assets
-		.map((asset) => {
-			const title = frappe.utils.escape_html(asset.asset_name || asset.name);
-			const barcode = frappe.utils.escape_html(asset.name);
-			const total_qty = Number(asset.asset_quantity || 1);
-			const safe_src = asset.image ? encodeURI(asset.image) : "";
-			const image = asset.image
-				? `<img class="mu-zoomable-img" data-src="${safe_src}" data-title="${title}" src="${safe_src}" alt="${title}" title="${__("Click to enlarge image")}" style="width:100%;height:120px;object-fit:cover;cursor:zoom-in;">`
-				: `<div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);">${frappe.utils.icon("image", "lg")}</div>`;
-			return `
-				<div style="width:180px;border:1px solid var(--border-color);border-radius:var(--border-radius-md);overflow:hidden;background:var(--card-bg);">
-					${image}
-					<div style="padding:8px;">
+function build_gallery_html(assets, items = [], rows = []) {
+	const asset_cards = (assets || []).map((asset) => {
+		const title = frappe.utils.escape_html(asset.asset_name || asset.name);
+		const barcode = frappe.utils.escape_html(asset.name);
+		const total_qty = Number(asset.asset_quantity || 1);
+		const safe_src = asset.image ? encodeURI(asset.image) : "";
+		const image = asset.image
+			? `<img class="mu-zoomable-img" data-src="${safe_src}" data-title="${title}" src="${safe_src}" alt="${title}" title="${__("Click to enlarge image")}" style="width:100%;height:120px;object-fit:cover;cursor:zoom-in;">`
+			: `<div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);">${frappe.utils.icon("image", "lg")}</div>`;
+		return `
+			<div style="width:185px;border:1px solid var(--border-color);border-radius:var(--border-radius-md);overflow:hidden;background:var(--card-bg);">
+				${image}
+				<div style="padding:8px;">
+					<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:2px;">
 						<div class="ellipsis" style="font-weight:600;" title="${title}">${title}</div>
-						<div class="text-muted small">${__("Asset Barcode")}: <b>${barcode}</b></div>
-						<div class="small">${__("Asset Value")}: ${format_currency(asset.gross_purchase_amount)}</div>
-						<div class="text-muted small">${__("Total Asset Qty")}: ${total_qty}</div>
+						<span class="indicator-pill blue" style="font-size:10px;padding:1px 6px;">${__("Asset")}</span>
 					</div>
-				</div>`;
-		})
-		.join("");
+					<div class="text-muted small">${__("Asset Barcode")}: <b>${barcode}</b></div>
+					<div class="small">${__("Asset Value")}: ${format_currency(asset.gross_purchase_amount)}</div>
+					<div class="text-muted small">${__("Total Asset Qty")}: ${total_qty}</div>
+				</div>
+			</div>`;
+	});
 
-	return `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">${cards}</div>`;
+	const item_cards = (items || []).map((item) => {
+		const matching_row = rows.find((r) => r.item_code === item.name) || {};
+		const type_label = matching_row.entry_type === "Service" ? __("Service") : __("Product");
+		const badge_color = matching_row.entry_type === "Service" ? "purple" : "green";
+		const title = frappe.utils.escape_html(item.item_name || item.name);
+		const code = frappe.utils.escape_html(item.name);
+		const price = matching_row.asset_value || item.standard_rate || 0;
+		const req_qty = Number(matching_row.qty || 1);
+		const safe_src = item.image ? encodeURI(item.image) : "";
+		const image = item.image
+			? `<img class="mu-zoomable-img" data-src="${safe_src}" data-title="${title}" src="${safe_src}" alt="${title}" title="${__("Click to enlarge image")}" style="width:100%;height:120px;object-fit:cover;cursor:zoom-in;">`
+			: `<div style="width:100%;height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);">${frappe.utils.icon("image", "lg")}</div>`;
+		return `
+			<div style="width:185px;border:1px solid var(--border-color);border-radius:var(--border-radius-md);overflow:hidden;background:var(--card-bg);">
+				${image}
+				<div style="padding:8px;">
+					<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:2px;">
+						<div class="ellipsis" style="font-weight:600;" title="${title}">${title}</div>
+						<span class="indicator-pill ${badge_color}" style="font-size:10px;padding:1px 6px;">${type_label}</span>
+					</div>
+					<div class="text-muted small">${__("Item Code")}: <b>${code}</b></div>
+					<div class="small">${__("Asset Value")}: ${format_currency(price)}</div>
+					<div class="text-muted small">${__("Quantity")}: ${req_qty}</div>
+				</div>
+			</div>`;
+	});
+
+	return `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">${asset_cards.concat(item_cards).join("")}</div>`;
 }
 
 // ---------------------------------------------------------------------------

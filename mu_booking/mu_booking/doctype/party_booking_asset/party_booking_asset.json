@@ -6,8 +6,10 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "entry_type",
   "asset_type",
   "asset_name",
+  "item_code",
   "asset_title",
   "asset_value",
   "total_asset_qty",
@@ -19,25 +21,44 @@
  "fields": [
   {
    "columns": 1,
+   "default": "Asset",
+   "fieldname": "entry_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Entry Type",
+   "options": "Asset\nProduct\nService",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
    "fieldname": "asset_type",
    "fieldtype": "Link",
-   "in_list_view": 1,
    "label": "Asset Type",
    "options": "Item Group"
   },
   {
    "columns": 2,
+   "depends_on": "eval:!doc.entry_type || doc.entry_type=='Asset'",
    "description": "Asset Barcode",
    "fieldname": "asset_name",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Asset",
-   "options": "Asset",
-   "reqd": 1
+   "mandatory_depends_on": "eval:!doc.entry_type || doc.entry_type=='Asset'",
+   "options": "Asset"
   },
   {
    "columns": 2,
-   "fetch_from": "asset_name.asset_name",
+   "depends_on": "eval:in_list(['Product', 'Service'], doc.entry_type)",
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Product / Service",
+   "mandatory_depends_on": "eval:in_list(['Product', 'Service'], doc.entry_type)",
+   "options": "Item"
+  },
+  {
+   "columns": 1,
    "fieldname": "asset_title",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -45,9 +66,7 @@
    "read_only": 1
   },
   {
-   "columns": 2,
-   "fetch_from": "asset_name.gross_purchase_amount",
-   "fetch_if_empty": 1,
+   "columns": 1,
    "fieldname": "asset_value",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -56,8 +75,7 @@
   {
    "columns": 1,
    "default": "1",
-   "fetch_from": "asset_name.asset_quantity",
-   "fetch_if_empty": 1,
+   "depends_on": "eval:!doc.entry_type || doc.entry_type=='Asset'",
    "fieldname": "total_asset_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
@@ -65,6 +83,7 @@
   },
   {
    "columns": 1,
+   "depends_on": "eval:!doc.entry_type || doc.entry_type=='Asset'",
    "fieldname": "available_qty",
    "fieldtype": "Int",
    "in_list_view": 1,
@@ -83,9 +102,9 @@
   {
    "columns": 1,
    "default": "Available",
+   "depends_on": "eval:!doc.entry_type || doc.entry_type=='Asset'",
    "fieldname": "asset_booking_status",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "label": "Booking Status",
    "options": "Available\nBooked\nDelivered\nReturned\nDamaged"
   },
@@ -99,7 +118,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-11-03 11:15:00.000000",
+ "modified": "2026-11-18 23:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Booking Asset",

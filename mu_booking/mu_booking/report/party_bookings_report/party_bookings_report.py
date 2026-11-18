@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+from mu_booking.mu_booking.doctype.party_booking.party_booking import format_time_12h
 
 
 def execute(filters=None):
@@ -20,7 +21,7 @@ def get_columns():
 		{"fieldname": "sales_person", "label": _("Sales Person"), "fieldtype": "Link", "options": "Sales Person", "width": 140},
 		{"fieldname": "party_date", "label": _("Party Date"), "fieldtype": "Date", "width": 110},
 		{"fieldname": "party_day", "label": _("Day"), "fieldtype": "Data", "width": 95},
-		{"fieldname": "party_time", "label": _("Party Time"), "fieldtype": "Time", "width": 100},
+		{"fieldname": "party_time_display", "label": _("Party Time"), "fieldtype": "Data", "width": 115},
 		{"fieldname": "party_location", "label": _("Party Location"), "fieldtype": "Data", "width": 140},
 		{"fieldname": "installation_address", "label": _("Installation Address"), "fieldtype": "Data", "width": 160},
 		{"fieldname": "event_type", "label": _("Event Type"), "fieldtype": "Link", "options": "Event Type", "width": 120},
@@ -66,6 +67,7 @@ def get_data(filters):
 			party_date,
 			party_day,
 			party_time,
+			party_time_12h,
 			party_location,
 			installation_address,
 			event_type,
@@ -82,6 +84,7 @@ def get_data(filters):
 
 	rows = frappe.db.sql(query, values, as_dict=True)
 	for row in rows:
+		row["party_time_display"] = format_time_12h(row.get("party_time")) or row.get("party_time_12h") or ""
 		if row.get("party_day"):
 			row["party_day"] = _(row["party_day"])
 		if row.get("service_type"):

@@ -9,11 +9,14 @@
   "session_date",
   "session_day",
   "session_time",
+  "session_time_period",
+  "session_time_12h",
   "alternative_asset",
   "session_status"
  ],
  "fields": [
   {
+   "columns": 2,
    "fieldname": "session_date",
    "fieldtype": "Date",
    "in_list_view": 1,
@@ -21,6 +24,7 @@
    "reqd": 1
   },
   {
+   "columns": 1,
    "fieldname": "session_day",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -28,6 +32,7 @@
    "read_only": 1
   },
   {
+   "columns": 2,
    "fieldname": "session_time",
    "fieldtype": "Time",
    "in_list_view": 1,
@@ -35,6 +40,24 @@
    "reqd": 1
   },
   {
+   "columns": 1,
+   "default": "PM",
+   "fieldname": "session_time_period",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Time Period (AM / PM)",
+   "options": "AM\nPM"
+  },
+  {
+   "columns": 1,
+   "fieldname": "session_time_12h",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Time (12-Hour)",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
    "description": "If specified, this asset will be booked for this session instead of the main booking assets.",
    "fieldname": "alternative_asset",
    "fieldtype": "Link",
@@ -43,6 +66,7 @@
    "options": "Asset"
   },
   {
+   "columns": 1,
    "default": "Scheduled",
    "fieldname": "session_status",
    "fieldtype": "Select",
@@ -55,7 +79,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-11-03 11:15:00.000000",
+ "modified": "2026-11-18 23:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mu Booking",
  "name": "Party Booking Session",

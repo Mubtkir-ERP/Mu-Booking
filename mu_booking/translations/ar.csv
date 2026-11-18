@@ -270,3 +270,13 @@ Open in New Tab,فتح في علامة تبويب جديدة
 Click to enlarge image,اضغط لتكبير الصورة
 Sales Person,مندوب المبيعات
 Sales Persons,مندوبي المبيعات
+Entry Type,نوع البند
+Product,منتج
+Service,خدمة
+Product / Service,المنتج / الخدمة
+Time Period (AM / PM),الفترة (صباحاً / مساءً)
+Time (12-Hour),الوقت (صباحاً / مساءً)
+AM,صباحاً
+PM,مساءً
+Row #{0}: Please select a Product or Service.,السطر #{0}: يرجى اختيار المنتج أو الخدمة.
+Row #{0}: Please select an Asset.,السطر #{0}: يرجى اختيار الأصل.

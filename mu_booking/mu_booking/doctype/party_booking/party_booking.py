@@ -79,6 +79,41 @@ def get_weekday_name(date_val):
     return _(WEEKDAY_NAMES[d.weekday()])
 
 
+def normalize_time_and_period(time_val, period_val=None):
+    """Return (normalized_24h_time_str, period_am_pm, formatted_12h_str)."""
+    if not time_val:
+        return "", period_val or "PM", ""
+
+    t_str = cstr(time_val).strip()
+    parts = t_str.split(":")
+    try:
+        hour = int(parts[0])
+        minute = int(parts[1]) if len(parts) > 1 else 0
+        second = int(float(parts[2])) if len(parts) > 2 else 0
+    except Exception:
+        return t_str, period_val or "PM", t_str
+
+    if period_val == "PM" and 1 <= hour <= 11:
+        hour += 12
+    elif period_val == "AM" and hour == 12:
+        hour = 0
+
+    period = "PM" if hour >= 12 else "AM"
+    hour_12 = hour % 12 or 12
+    period_label = _("PM") if period == "PM" else _("AM")
+    norm_24h = f"{hour:02d}:{minute:02d}:{second:02d}"
+    disp_12h = f"{hour_12:02d}:{minute:02d} {period_label}"
+    return norm_24h, period, disp_12h
+
+
+def format_time_12h(time_val):
+    """Format any 24h time value into localized 12-hour time with AM/PM."""
+    if not time_val:
+        return ""
+    _norm, _period, disp_12h = normalize_time_and_period(time_val)
+    return disp_12h
+
+
 def get_nth_weekday_of_month(year, month, week_str, weekday_int):
     c = calendar.Calendar(firstweekday=calendar.MONDAY)
     monthcal = c.monthdatescalendar(year, month)
@@ -129,22 +164,26 @@ class PartyBooking(Document):
             if not self.warehouse_return_status:
                 self.warehouse_return_status = "Not Returned"
         self.set_weekday_fields()
+        self.set_time_fields()
         self.sync_installation_manager_details()
         self.validate_party_date()
         self.validate_recurring()
         self.generate_recurring_sessions()
         self.set_weekday_fields()
+        self.set_time_fields()
         self.sync_asset_quantities_and_values()
         self.check_asset_conflict()
 
     def before_update_after_submit(self):
         """Allow modifying party_date / party_time on submitted bookings while re-validating conflicts."""
         self.set_weekday_fields()
+        self.set_time_fields()
         self.sync_installation_manager_details()
         self.validate_recurring()
         if self.booking_type == "Recurring" and self.recurring_pattern != "Manual":
             self.generate_recurring_sessions()
             self.set_weekday_fields()
+            self.set_time_fields()
         self.sync_asset_quantities_and_values()
         self.check_asset_conflict()
 
@@ -171,23 +210,70 @@ class PartyBooking(Document):
             if s.session_date:
                 s.session_day = get_weekday_name(s.session_date)
 
+    def set_time_fields(self):
+        """Normalize party_time and session_time with AM/PM period and populate 12-hour display strings."""
+        if self.party_time:
+            norm_24h, period, disp_12h = normalize_time_and_period(
+                self.party_time, getattr(self, "party_time_period", None)
+            )
+            self.party_time = norm_24h
+            self.party_time_period = period
+            self.party_time_12h = disp_12h
+        else:
+            self.party_time_12h = ""
+
+        for s in self.sessions or []:
+            if s.session_time:
+                s_norm, s_period, s_disp = normalize_time_and_period(
+                    s.session_time, getattr(s, "session_time_period", None)
+                )
+                s.session_time = s_norm
+                s.session_time_period = s_period
+                s.session_time_12h = s_disp
+            else:
+                s.session_time_12h = ""
+
     def sync_asset_quantities_and_values(self):
-        """Populate asset_value, total_asset_qty, and available_qty from ERPNext Asset standard fields."""
+        """Populate asset_value, total_asset_qty, and available_qty for Assets, Products, and Services."""
         target_dates = self.get_booking_dates()
         for d in self.assets or []:
-            if not d.asset_name:
-                continue
+            entry_type = getattr(d, "entry_type", None) or "Asset"
+            d.entry_type = entry_type
             if cint(d.qty) < 1:
                 d.qty = 1
+
+            if entry_type in ("Product", "Service"):
+                d.asset_name = ""
+                if not d.item_code:
+                    frappe.throw(_("Row #{0}: Please select a Product or Service.").format(d.idx))
+                item_info = get_item_details_for_booking(d.item_code)
+                if item_info:
+                    d.asset_title = item_info.get("item_name") or d.item_code
+                    if not d.asset_type and item_info.get("item_group"):
+                        d.asset_type = item_info.get("item_group")
+                    if not flt(d.asset_value) and flt(item_info.get("price")):
+                        d.asset_value = flt(item_info.get("price"))
+                    d.total_asset_qty = cint(item_info.get("stock_qty") or d.qty or 1)
+                    d.available_qty = cint(item_info.get("stock_qty") or d.qty or 1)
+                continue
+
+            # Default: Asset
+            d.item_code = ""
+            if not d.asset_name:
+                if len(self.assets) > 1 or not self.is_new():
+                    frappe.throw(_("Row #{0}: Please select an Asset.").format(d.idx))
+                continue
             asset_info = frappe.db.get_value(
                 "Asset",
                 d.asset_name,
-                ["asset_name", "gross_purchase_amount", "asset_quantity"],
+                ["asset_name", "item_code", "gross_purchase_amount", "asset_quantity"],
                 as_dict=True,
             )
             if asset_info:
                 if not d.asset_title:
                     d.asset_title = asset_info.asset_name
+                if not d.asset_type and asset_info.item_code:
+                    d.asset_type = frappe.db.get_value("Item", asset_info.item_code, "item_group")
                 if not flt(d.asset_value):
                     d.asset_value = flt(asset_info.gross_purchase_amount)
                 db_total_qty = max(cint(asset_info.asset_quantity), 1)
@@ -336,6 +422,8 @@ class PartyBooking(Document):
                     "session_date": d,
                     "session_day": get_weekday_name(d),
                     "session_time": old_s.session_time or self.party_time,
+                    "session_time_period": getattr(old_s, "session_time_period", None) or getattr(self, "party_time_period", "PM"),
+                    "session_time_12h": getattr(old_s, "session_time_12h", None) or getattr(self, "party_time_12h", ""),
                     "session_status": old_s.session_status,
                     "alternative_asset": old_s.alternative_asset,
                 })
@@ -344,6 +432,8 @@ class PartyBooking(Document):
                     "session_date": d,
                     "session_day": get_weekday_name(d),
                     "session_time": self.party_time,
+                    "session_time_period": getattr(self, "party_time_period", "PM"),
+                    "session_time_12h": getattr(self, "party_time_12h", ""),
                     "session_status": "Scheduled",
                 })
 
@@ -359,10 +449,11 @@ class PartyBooking(Document):
         if not target_dates:
             return
 
-        # Sum requested quantities per asset in the current booking
+        # Sum requested quantities per asset in the current booking (only for Asset rows)
         requested_by_asset = {}
         for d in self.assets or []:
-            if d.asset_name:
+            entry_type = getattr(d, "entry_type", None) or "Asset"
+            if entry_type == "Asset" and d.asset_name:
                 requested_by_asset[d.asset_name] = requested_by_asset.get(d.asset_name, 0) + max(cint(d.qty), 1)
 
         # Also check session-specific alternative assets
@@ -698,6 +789,49 @@ def get_active_bookings_holding(assets, exclude=None, target_date=None):
     for row in main_conflicts + alt_conflicts:
         blocking.setdefault(row.asset, row.name)
     return blocking
+
+
+@frappe.whitelist()
+def get_item_details_for_booking(item_code):
+    """Return standard Item details (name, group, selling price, stock qty, image) for Product / Service rows."""
+    if not item_code:
+        return {}
+    item = frappe.db.get_value(
+        "Item",
+        item_code,
+        ["name", "item_name", "item_group", "standard_rate", "valuation_rate", "image", "is_stock_item"],
+        as_dict=True,
+    )
+    if not item:
+        return {}
+
+    price = flt(item.standard_rate)
+    if not price and frappe.db.exists("DocType", "Item Price"):
+        selling_price = frappe.db.get_value(
+            "Item Price",
+            {"item_code": item_code, "selling": 1},
+            "price_list_rate",
+            order_by="modified desc",
+        )
+        price = flt(selling_price) or flt(item.valuation_rate)
+
+    stock_qty = 0
+    if item.is_stock_item and frappe.db.exists("DocType", "Bin"):
+        bin_qty = frappe.db.sql(
+            "SELECT SUM(actual_qty) FROM `tabBin` WHERE item_code = %s",
+            (item_code,),
+        )
+        stock_qty = max(cint(bin_qty[0][0]) if bin_qty and bin_qty[0][0] else 0, 0)
+
+    return {
+        "item_code": item.name,
+        "item_name": item.item_name or item.name,
+        "item_group": item.item_group or "",
+        "price": price,
+        "image": item.image or "",
+        "is_stock_item": cint(item.is_stock_item),
+        "stock_qty": stock_qty,
+    }
 
 
 @frappe.whitelist()
