@@ -1,3 +1,21 @@
+<!-- MUBTKIR-UNIFIED-README-START -->
+## نظام إدارة حجوزات الحفلات والمناسبات | Mu Booking
+
+تطبيق لإدارة حجوزات الأصول والقاعات والفعاليات، العقود، الدفعات، وجدولة التوافر على ERPNext.
+* **الفئة المستهدفة:** شركات تنظيم الحفلات، القاعات، الاستراحات، ومكاتب تأجير مستلزمات المناسبات.
+
+Custom Frappe/ERPNext app for party, venue, and event asset bookings, availability scheduling, and payments.
+* **Target Audience:** Event planners, wedding/party halls, resorts, and event equipment rental businesses.
+
+### تواصل معنا | Contact & Sales — [مبتكر للأنظمة السحابية | Mubtkir ERP](https://mubtkir.com)
+
+* 🌐 **الموقع الرسمي | Website:** [Mubtkir ERP — حلول ERPNext السحابية](https://mubtkir.com)
+* 📧 **البريد الإلكتروني | Email:** [sales@mubtkir.com](mailto:sales@mubtkir.com)
+* 📱 **الجوال | Mobile:** [+966547706865](tel:+966547706865)
+* 💬 **واتساب | WhatsApp:** [+966126810486](https://wa.me/966126810486)
+
+<!-- MUBTKIR-UNIFIED-README-END -->
+
 # Mu Booking (Party Booking App)
 
 **Mu Booking** is a custom Frappe application designed to streamline the process of managing party and event bookings. It handles everything from initial booking requests (including AI Bot integrations) to asset management, recurring sessions, and financial returns.
